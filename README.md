@@ -35,7 +35,7 @@ class SampleViewController: UIViewController {
         // TODO: ここでSnapKitを使ってレイアウト制約をつけてください
         sampleView.snp.makeConstraints { make in
         make.leading.equalTo(20) //左20ポイントマージン
-        make.trailing.equalTo(-10) //右に20ポイントマージン
+        make.trailing.equalTo(-0) //右に20ポイントマージン
         make.height.equalTo(150) //高さは150ポイント
         make.center.equalTo(self.view) //中央に配置
 }
