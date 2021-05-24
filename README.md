@@ -3,6 +3,11 @@
 
 **（１）モバイルアプリを開発する上で、設計上留意すべき点はどこになるか、サーバサイドやフロントエンドとの違いの観点から説明してください。**
 
+A.
+------
+
+------
+
 **（２）ViewControllerへの過度な依存や類似/同一コードの重複を避けるため、コード設計上どのような対策をとることが望ましいか、プレゼンテーション層（View）と処理・ビジネスロジック（Controller）それぞれの観点から、実際のコード例を挙げて説明してください。**
 
 ## Day2
@@ -28,6 +33,12 @@ class SampleViewController: UIViewController {
         super.viewDidLoad()
         
         // TODO: ここでSnapKitを使ってレイアウト制約をつけてください
+        sampleView.snp.makeConstraints { make in
+        make.leading.equalTo(20) //左20ポイントマージン
+        make.trailing.equalTo(-10) //右に20ポイントマージン
+        make.height.equalTo(150) //高さは150ポイント
+        make.center.equalTo(self.view) //中央に配置
+}
     }
 }
 ```
@@ -43,10 +54,41 @@ import UIKit
 class SampleView: UIView {
     @IBOutlet private dynamic weak var view: UIView!
 }
+
+class ViewController: UIViewController ,UIGestureRecognizerDelegate {
+
+var sampleView = SampleView()
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        
+        let tapGesture:UITapGestureRecognizer = UITapGestureRecognizer(
+            target: self,
+            action: #selector(ViewController.tapped(_:)))
+        
+        // デリゲートをセット
+        tapGesture.delegate = self
+        
+        self.sampleView.view.addGestureRecognizer(tapGesture)
+    }
+ 
+    @objc func tapped(_ sender: UITapGestureRecognizer){
+        if sender.state == .ended {
+            print("タップ")
+        }
+    }
+    
+}
 ```
 
 **（５）あるビューやクラスを別のクラスのプロパティとして持つ場合、どんなときにlazyを使えば良いのか、またlazyを使うことでどんなメリットがあるのか、講座を通じて覚えたことや自分なりの考察を踏まえて説明してください。**
 
+A.
+------
+1. varとして使う
+2. 最初requestする時初期化されてその後、値を保存します。従って最初の値を維持します。→letとしては使えない
+3. structとclassで使う
+------
 ## Day3
 
 **（６）以下のコードを埋めて、UIViewController（呼び出し側）とカスタムビューとの間での処理のやりとりを実現するコードを書いてください。その際、下記の条件を満たすこと。**
@@ -82,6 +124,7 @@ class SampleCustomView: UIView {
     @IBOutlet private dynamic weak var button: UIButton!
     @IBAction private func buttonTouchUpInside(_ sender: UIButton) {
         // TODO
+        
     }
 }
 ```
@@ -102,9 +145,21 @@ class SampleViewController: UIViewController {
     @IBOutlet private dynamic weak var imageView2: UIImageView!
     @IBOutlet private dynamic weak var imageView3: UIImageView!
     @IBOutlet private dynamic weak var imageView4: UIImageView!
+    
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         // TODO
+        self.imageView1.image = UIImage(named: "icon")
+        
+        let imagePath = Bundle.main.path(forResource: "icon2", ofType: "png")
+        self.imageView2.image = UIImage(contentsOfFile:imagePath!)
+        
+        let brandIcon = BrandIcon.twitter
+        imageView.image = UIImage.(icon: brandIcon, color: brandIcon.color, fontSize: 128)
+        
+        let url = URL(string: "https://sample.com/sample.jpg")
+        imageView4.kf.setImage(with: url)
     }
 }
 enum BrandIcon {
@@ -186,6 +241,23 @@ class SampleViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         // TODO
+        let favoriteApp = BrandIcon.twitter
+        let text = "<brand>\(favoriteApp.text)</brand>のアカウントを使って<red>ログイン</red>する"
+        let attributedString: NSAttributedString = text.styled(with: StringStyle(
+            .font(UIFont.default(20)),
+            .color(.black),
+            .lineSpacing(6),
+            .xmlRules([
+                .style("red", StringStyle(
+                    .color(.red)
+                )),
+                .style("brand", StringStyle(
+                    .font(UIFont.faBrand(20)),
+                    .color(favoriteApp.color)
+                ))
+            ])
+        ))
+        textLabel.attributedText = attributedString
     }
 }
 extension UIFont {
@@ -267,14 +339,19 @@ extension UIImage {
 **（９）下記の各データを保存するとき、どのような手法を用いて要件を満たせば良いか、その理由も含めて説明してください。**
 
 ①　アプリのインストール後チュートリアルの閲覧が完了したかどうかのフラグ
+userDefault
 
 ②　ログインが必要なアプリで、次回起動時にログインを省略するためのAPIキー
-
+keyChain
+データを暗号化して保存するのでパスワードなどのログイン情報を保存する時保安性が良い
 ③　マスターデータ
+CoreData/SQLite
 
 ④　ユーザーまたはアプリ運営者が継続的に投稿しているコンテンツ
+サーバー通信
 
 ⑤　④のコンテンツのキャッシュ
+CoreData/SQLite
 
 **（１０）以下の要件を満たすデータ群を、enumを用いて実際のコードで書いてください。**
 
@@ -565,7 +642,8 @@ class SampleViewController: UIViewController {
     }
 }
 class SampleCustomView: UIView {
-    var viewController: SampleViewController?
+    // var viewController: SampleViewController?
+    weak var viewController: SampleViewController?
     @IBOutlet private dynamic weak var button: UIButton!
     @IBAction private func buttonTouchUpInside(_ sender: UIButton) {
         viewController?.onCustomViewChanged()
@@ -587,7 +665,8 @@ class SampleViewController: UIViewController {
     }
 }
 class SampleCustomView: UIView {
-    var closure: (() -> Void)?
+    //var closure: (() -> Void)? 
+    private var closure: (() -> Void)? 
 }
 ```
 
@@ -598,7 +677,13 @@ import UIKit
 class SampleViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
-        NotificationCenter.default.addObserver(self, selector: #selector(keyboardWillShow(_:)), name: UIResponder.keyboardWillShowNotification, object: nil)
+        //NotificationCenter.default.addObserver(self, selector: #selector(keyboardWillShow(_:)), name: UIResponder.keyboardWillShowNotification, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(keyboardWillShow(_:)), name: UIResponder.keyboardWillShowNotification, object: nil){
+        [weak self] (_) in
+            guard let self = self else{
+                return
+            }
+        }
     }
     @objc private func keyboardWillShow(_ notification: Foundation.Notification) {
         print("keyboardWillShow!!")
