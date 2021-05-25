@@ -104,7 +104,7 @@ class SampleData {
     var name: String = ""
 }
 
-class SampleViewController: UIViewController {
+class SampleViewController: UIViewController, SampleCustomViewDelegate {
     @IBOutlet private dynamic weak var customView: SampleCustomView!
     
     override func viewDidLoad() {
@@ -113,18 +113,36 @@ class SampleViewController: UIViewController {
         data.name = "テストデータ"
         customView.data = data
     }
+    
+    func updateData() {
+       // button event
+    }
+}
+
+protocol SampleCustomViewDelegate {
+    func updateData()
 }
 
 class SampleCustomView: UIView {
-    var data: SampleData?
+    //var data: SampleData?
+    var data: SampleData? {
+        didSet {
+            update()
+        }
+    }
+    var delegate: SampleCustomViewDelegate?
+    
     func update() {
         // TODO
+        nameLabel.text = data.name
     }
     @IBOutlet private dynamic weak var nameLabel: UILabel!
     @IBOutlet private dynamic weak var button: UIButton!
     @IBAction private func buttonTouchUpInside(_ sender: UIButton) {
         // TODO
-        
+        if let delegate = delegate {
+            delegate.updateData()
+        }
     }
 }
 ```
