@@ -461,8 +461,6 @@ class ContentService {
 
 **（１４）あるカスタムビュークラスが、プロパティのデータの型によって異なる表示を行うものとします。その際、ジェネリクスを使った場合の実装、使わない場合の実装のコード例を、以下のコードを埋める形でそれぞれ書いてください。その際、下記の条件を満たすこと。**
 
-> - `SampleViewController`で`SampleCustomView`のインスタンスを作り、viewにaddSubviewすること
-> - 任意のクラス「Dog」または「Cat」のインスタンスを作り、その`SampleCustomView`のインスタンスにセットすること
 > - `SampleCustomView`では、`data`がセットされたときに`nameLabel`に「Dog」または「Cat」の`name`の文字列を表示させること
 
 ```swift
@@ -477,18 +475,24 @@ class Cat: Animal {
 protocol Animal {
     var name: String { get set }
 }
-
 class SampleViewController: UIViewController {
-    @IBOutlet private dynamic weak var customView: SampleCustomView!
-    
+    private lazy var customView: SampleCustomView = {
+        let customView = SampleCustomView()
+        view.addSubview(customView)
+        return customView
+    }()
     override func viewDidLoad() {
         super.viewDidLoad()
-        let data = SampleData()
-        data.name = "テストデータ"
-        customView.data = data
+        customView.snp.makeConstraints { make in
+            make.top.equalTo(view).offset(0)
+            make.left.equalTo(view).offset(0)
+            make.right.equalTo(view).offset(0)
+            make.bottom.equalTo(view).offset(0)
+        }
+        let Dog = Dog()
+        customView.data = cat
     }
 }
-
 class SampleCustomView: UIView {
     var data: ??? // TODO: 型名
     @IBOutlet private dynamic weak var nameLabel: UILabel!
