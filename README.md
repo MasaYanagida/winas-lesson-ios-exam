@@ -4,11 +4,35 @@
 **（１）モバイルアプリを開発する上で、設計上留意すべき点はどこになるか、サーバサイドやフロントエンドとの違いの観点から説明してください。**
 
 A.
+
 ------
+モバイルアプリを設計する時にはlife cycleを把握して全体を設計する必要がある。
 
 ------
 
-**（２）ViewControllerへの過度な依存や類似/同一コードの重複を避けるため、コード設計上どのような対策をとることが望ましいか、プレゼンテーション層（View）と処理・ビジネスロジック（Controller）それぞれの観点から、実際のコード例を挙げて説明してください。**
+**（２）ViewControllerへの過度な依存や類似/同一コードの重複を避けるため、コード設計上どのような対策をとることが望ましいか、プレゼンテーション層（View）と処理・ビジネスロジック（Controller）それぞれの観点から説明してください。**
+
+A.
+
+-----
+ViewControllerの負担を減らすため「MVVC」もしくは「MVVM」などのパータンを利用して開発します。
+
+①MVVCの場合
+
+Model + View + ViewController
+Model : アプリのデータとビジネスロジックを持っている
+View : ユーザーにデータを見せるためのUIを担当する
+ViewController : Viewからユーザーのrequestを認識してModelと連携する
+
+②MVVMの場合
+
+Model + View + ViewModel
+
+Model : アプリのデータとビジネスロジックを持っている
+View : ユーザーにデータを見せるためのUIを担当する
+ViewModel : ViewControllerで行うデータの扱いを担当してViewControllerの負担を減らす
+
+-----
 
 ## Day2
 
@@ -354,22 +378,34 @@ extension UIImage {
 
 ## Day4
 
-**（９）下記の各データを保存するとき、どのような手法を用いて要件を満たせば良いか、その理由も含めて説明してください。**
+**下記の各データを保存または取得するとき、どのような手法を用いて要件を満たせば良いか、その理由も含めて説明してください。**
 
 ①　アプリのインストール後チュートリアルの閲覧が完了したかどうかのフラグ
-userDefault
+
+userDefault : 簡単にkey-valueを解除できる
 
 ②　ログインが必要なアプリで、次回起動時にログインを省略するためのAPIキー
-keyChain
+
+keyChain : 
 データを暗号化して保存するのでパスワードなどのログイン情報を保存する時保安性が良い
+
+userDefault : 
+ユーザー基本設定ような簡単なデータの値を扱いには良い
+
 ③　マスターデータ
-CoreData/SQLite
+
+CoreData/SQLite :
+端末に保存して管理ができる
 
 ④　ユーザーまたはアプリ運営者が継続的に投稿しているコンテンツ
-サーバー通信
+
+サーバー通信 :
+継続的にデータの更新があっても簡潔にデータを提供することができる
 
 ⑤　④のコンテンツのキャッシュ
+
 CoreData/SQLite
+アプリに対して一時的に
 
 **（１０）以下の要件を満たすデータ群を、enumを用いて実際のコードで書いてください。**
 
@@ -386,13 +422,75 @@ CoreData/SQLite
 
 ```swift
 // TODO : ここにコードを記述してください
+enum Gender: Int {
+    case unknown = 0, male = 1, female = 2
+    var name: String {
+        switch self {
+        case .unknown: return "不明"
+        case .male: return "男性"
+        case .female: return "女性"
+        }
+    }
+}
+
+class Content: Object {
+
+        var genderId: Int = Gender.unknown.rawValue
+
+        var gender: Gender {
+        return Gender(rawValue: genderId) ?? .unknown
+    }
+        var description: String {
+        return "gender= \(gender.name)"
+    }
+    
+    func convert(_ genderId: Int) {
+        if genderId == 1 {
+            return 2
+        } else if genderId == 2 {
+            return 1
+        } else {
+            return 0
+        }
+    }
+    var convertId = convert(genderId)
+    var gender2: Gender {
+        return Gender(rawValue: convertId) ?? .unknown
+    }
+
+    var description2: String {
+        return "gender= \(gender2.name)"
+    }
+}
 ```
 
-**（１１）データの取得と加工を、それが必要とする箇所（ViewController側など）ではなく、仲介クラスやメソッド（講座では`Service`というクラスを使った）を使って行ったほうが良い理由をわかりやすく説明してください。**
+**（１１）データの取得と加工を、それが必要とする箇所（ViewController側など）ではなく、仲介クラスやメソッド（講座では`Service`という名前をつけたクラスを作った）を使って行ったほうが良い理由をわかりやすく説明してください。**
+
+A.
+
+-----
+同じデータが複数のクラスで必要な場合必要な箇所で毎度同じデータを呼び出すクラスやメソッドを定義すると何度も同じコードを入力して維持保守の側面ですごく悪い、
+
+仲介クラスやメソッドを作って同じデータを提供する機能があればそれを必要な箇所で簡単に呼び出すのがViewControllerの負担も減らすしコード管理側面でも効率的。
+
+-----
 
 **（１２）サーバAPIからJSONデータを取得して、モデルクラスの形で呼び出し元まで返す過程を、準備のための実装フローも含めて、箇条書きでできるだけ詳しく、ロジックフローで説明してください。なお、ライブラリはAlamofire, Moya, SwiftyJson, ObjectMapperを使うものとします。**
 > 例：　Step1: XXクラスをXXライブラリの仕様に沿うよう、XXする。  
 >　　　Step2: XXデータをXXライブラリのXXメソッドを使ってXXする。
+
+A.
+
+-----
+Step1: 列挙型でMoyaライブラリの仕様にそうようにTargetTypeの属性を宣言する。
+
+Step2: 宣言したMoyaライブラリのpathからAPI通信ができるようにAlamofireライブラリ仕様に従って宣言する。
+
+Step3: Alamofireライブラリで通信したデータをJson型で表示するためSwiftyJsonの仕様の通りに宣言する。
+
+Step4: 取得したデータをModelクラスでマッピングするためObjectMapperを使ってJsonデータをModelにマッピングする。
+
+-----
 
 ## Day5
 
@@ -541,6 +639,24 @@ class ContentService {
                 // run in main => UI thread
                 DispatchQueue.main.async {
                     // TODO
+                    var dataArray = [Feedable]()
+                    safeJson.arrayValue.forEach { jsonObject in
+                        guard let contentTypeId = jsonObject["content_type"].int,
+                            let contentType = FeedContentType(rawValue: contentTypeId) else {
+                            return
+                        }
+                        switch contentType {
+                        case .dog:
+                            if let dog = Mapper<Dog>().map(JSONObject: jsonObject.dictionaryObject) {
+                                dataArray.append(dog)
+                            }
+                        case .cat:
+                            if let cat = Mapper<Cat>().map(JSONObject: jsonObject.dictionaryObject) {
+                                dataArray.append(cat)
+                            }
+                        }
+                    }
+                    completion?(dataArray)
                 }
             },
             error: { statusCode in
@@ -556,8 +672,6 @@ class ContentService {
 
 **（１４）あるカスタムビュークラスが、プロパティのデータの型によって異なる表示を行うものとします。その際、ジェネリクスを使った場合の実装、使わない場合の実装のコード例を、以下のコードを埋める形でそれぞれ書いてください。その際、下記の条件を満たすこと。**
 
-> - `SampleViewController`で`SampleCustomView`のインスタンスを作り、viewにaddSubviewすること
-> - 任意のクラス「Dog」または「Cat」のインスタンスを作り、その`SampleCustomView`のインスタンスにセットすること
 > - `SampleCustomView`では、`data`がセットされたときに`nameLabel`に「Dog」または「Cat」の`name`の文字列を表示させること
 
 ```swift
@@ -574,13 +688,21 @@ protocol Animal {
 }
 
 class SampleViewController: UIViewController {
-    @IBOutlet private dynamic weak var customView: SampleCustomView!
-    
+    private lazy var customView: SampleCustomView = {
+        let customView = SampleCustomView()
+        view.addSubview(customView)
+        return customView
+    }()
     override func viewDidLoad() {
         super.viewDidLoad()
-        let data = SampleData()
-        data.name = "テストデータ"
-        customView.data = data
+        customView.snp.makeConstraints { make in
+             make.top.equalTo(view).offset(0)
+             make.left.equalTo(view).offset(0)
+             make.right.equalTo(view).offset(0)
+             make.bottom.equalTo(view).offset(0)
+         }
+         let Dog = Dog()
+         customView.data = cat
     }
 }
 
@@ -759,10 +881,31 @@ extension SampleCollectionViewController: UICollectionViewDelegateFlowLayout {
 }
 class ContentCollectionViewCell: UICollectionViewCell {
     // TODO
+        struct Static {
+        static var cell = ContentCollectionViewCell.fromNib()
+        static let cache = NSCache<NSString, NSValue>()
+    }
+
     class func sizeForItem(content: Content, width: CGFloat) -> CGSize {
         // TODO
-        return .zero
+        let cacheKey: NSString = "ContentCollectionViewCell:\(content.id)" as NSString
+        if let size = Static.cache.object(forKey: cacheKey) as? CGSize {
+            return size
+        }
+        let cell = Static.cell
+        cell.content = content
+        cell.frame.size = CGSize(width: width, height: 0)
+        cell.setNeedsLayout()
+        var size = cell.systemLayoutSizeFitting(
+            CGSize(width: width, height: 0),
+            withHorizontalFittingPriority: .required,
+            verticalFittingPriority: .defaultLow
+        )
+        size.width = width
+        Static.cache.setObject(NSValue(cgSize: size), forKey: cacheKey)
+        return size
     }
+
     var content: Content?
     private func updateView(_ content: Content) {
         nameLabel.text = content?.name ?? ""
