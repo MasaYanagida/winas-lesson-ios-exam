@@ -1,10 +1,19 @@
 
 ## Day1
 
-**（１）モバイルアプリを開発する上で、設計上留意すべき点はどこになるか、サーバサイドやフロントエンドとの違いの観点から説明してください。**
+**（１）モバイルアプリを開発する上で、設計上留意すべき点はどこになるか、サーバサイドやフロントエンドとの違いの観点から説明してください。**  
+→[ANSWER]アプリのライフサイクルのKnowledgeと全体の設計を分かるのは大事なことです
 
-**（２）ViewControllerへの過度な依存や類似/同一コードの重複を避けるため、コード設計上どのような対策をとることが望ましいか、プレゼンテーション層（View）と処理・ビジネスロジック（Controller）それぞれの観点から説明してください。**
-
+**（２）ViewControllerへの過度な依存や類似/同一コードの重複を避けるため、コード設計上どのような対策をとることが望ましいか、プレゼンテーション層（View）と処理・ビジネスロジック（Controller）それぞれの観点から、実際のコード例を挙げて説明してください。**  
+→[ANSWER]We can utilize Service/Helper/Utility for reducing the duplication of same codes.
+```
+class Helper {
+      static func someTask() {
+      }    
+}
+// in controllers
+Helper.someTask()
+```
 ## Day2
 
 **（３）以下のコードのTODO箇所を埋めて、SnapKitによるレイアウトを実現するコードを書いてください。その際、下記の条件を満たすこと。**
@@ -28,6 +37,14 @@ class SampleViewController: UIViewController {
         super.viewDidLoad()
         
         // TODO: ここでSnapKitを使ってレイアウト制約をつけてください
+        //ANSWER:2
+        sampleView.snp.makeConstraints { make in
+            make.left.equalTo(view).offset(20)
+            make.right.equalTo(view).offset(-20)
+            make.width.equalToSuperview()
+            make.centerY.centerX.equalToSuperview()
+            make.height.equalTo(100) 
+        }
     }
 }
 ```
@@ -43,9 +60,38 @@ import UIKit
 class SampleView: UIView {
     @IBOutlet private dynamic weak var view: UIView!
 }
+
+//ANSWER:4
+
+class SampleViewController: UIViewController {
+    public var sampleView: SampleView! {
+        guard isViewLoaded else {
+            return nil
+        }
+        return (view as! SampleView)
+    }
+    override func viewDidLoad() {
+        super.viewDidLoad()
+    
+        let gestureRecognizer = UITapGestureRecognizer(target: self, action: #selector(changeImage))
+        sampleView.addGestureRecognizer(gestureRecognizer)
+    }
+    
+    @objc func changeImage() {
+        print("something)
+    }
+}
 ```
 
 **（５）あるビューやクラスを別のクラスのプロパティとして持つ場合、どんなときにlazyを使えば良いのか、またlazyを使うことでどんなメリットがあるのか、講座を通じて覚えたことや自分なりの考察を踏まえて説明してください。**
+
+```
+どんなときにlazyを使えるか？
+-> when the view is not initially needed
+-> when the initial value depend on other factors
+-> to reduce the memory allocation for the memory heavy application
+```
+
 
 ## Day3
 
@@ -62,9 +108,14 @@ class SampleData {
     var name: String = ""
 }
 
-class SampleViewController: UIViewController {
+//Answer:6
+protocol SampleCustomViewControllerDelegate {
+    func buttonTapped()
+}
+//Answer:6
+class SampleViewController: UIViewController, SampleCustomViewControllerDelegate {
     @IBOutlet private dynamic weak var customView: SampleCustomView!
-    
+
     override func viewDidLoad() {
         super.viewDidLoad()
         let data = SampleData()
@@ -77,11 +128,16 @@ class SampleCustomView: UIView {
     var data: SampleData?
     func update() {
         // TODO
+        //Answer:6
+        nameLabel.text = data.name
     }
     @IBOutlet private dynamic weak var nameLabel: UILabel!
     @IBOutlet private dynamic weak var button: UIButton!
+    var delegate:SampleCustomViewControllerDelegate?
     @IBAction private func buttonTouchUpInside(_ sender: UIButton) {
         // TODO
+        //Answer:6
+        delegate.buttonTapped()
     }
 }
 ```
@@ -105,6 +161,13 @@ class SampleViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         // TODO
+        //Answer:7
+        let imgUrl = "https://sample.com/sample.jpg"
+        let brancIcon = BrandIcon.twitter
+        imageView1.image = UIImage(named: “icon”)
+        imageView2.image = UIImage(named: “icon2.png”, in: Bundle(for: type(of:self)))
+        imageView3.image = UIImage.brandIcon(icon: brandIcon, color: brandIcon.color)
+        imageView4.setImage(with: imgUrl)
     }
 }
 enum BrandIcon {
@@ -186,6 +249,13 @@ class SampleViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         // TODO
+        // Answer:8
+        let twitter = BrandIcon.twitter
+        let loginStyle = StringStyle(
+                .color(.red)
+            )
+        let text =  "<twitter>\(twitter.text)</twitter>のアカウントを使って<loginStyle>ログイン</loginStyle>する"
+
     }
 }
 extension UIFont {
@@ -264,17 +334,22 @@ extension UIImage {
 
 ## Day4
 
-**（９）下記の各データを保存または取得するとき、どのような手法を用いて要件を満たせば良いか、その理由も含めて説明してください。**
+**（９）下記の各データを保存するとき、どのような手法を用いて要件を満たせば良いか、その理由も含めて説明してください。**
 
-①　アプリのインストール後チュートリアルの閲覧が完了したかどうかのフラグ
+①　アプリのインストール後チュートリアルの閲覧が完了したかどうかのフラグ  
+ANSWER: Flagは地裁データなので、UserDefaultに保存します
 
-②　ログインが必要なアプリで、次回起動時にログインを省略するためのAPIキー
+②　ログインが必要なアプリで、次回起動時にログインを省略するためのAPIキー  
+ANSWER: Keychain, Securityを必要なので
 
-③　マスターデータ
+③　マスターデータ  
+ANSWER: CoreData/SQLite/Realm, Because the size of the data might be big
 
-④　ユーザーまたはアプリ運営者が継続的に投稿しているコンテンツ
+④　ユーザーまたはアプリ運営者が継続的に投稿しているコンテンツ  
+ANSWER: CoreData/SQLite/Realm, For the similar reason
 
-⑤　④のコンテンツのキャッシュ
+⑤　④のコンテンツのキャッシュ  
+ANSWER: CoreData/SQLite/Realm, For the similar reason
 
 **（１０）以下の要件を満たすデータ群を、enumを用いて実際のコードで書いてください。**
 
@@ -290,14 +365,91 @@ extension UIImage {
 |名前 |男性 |女性 |不明 |
 
 ```swift
-// TODO : ここにコードを記述してください
+enum Gender: Int {
+      case unknown = 0
+      case male    = 1
+      case female  = 2
+      var name: String {
+            case .unknown: return "不明"
+            case .male:    return "男性"
+            case .female:  return "女性"
+      }
+}
+
+class Gender: Object, Mappable {
+      @objc dynamic var name: String = ""
+      @objc dynamic var id: Int = Gender.unknown.rawValue
+      
+      func convert(id: Gender) -> String {
+          switch genderId {
+              case .unknown: return "不明"
+              case .male:    return "女性"
+              case .female:  return "男性"
+          } 
+      }
+
+      required convenience init?(map: Map) {
+         self.init()
+      }
+
+      func mapping(map: Map) {
+          name <- map["name"]
+          genderId <- map["gender"]
+      }
+}
+
 ```
 
-**（１１）データの取得と加工を、それが必要とする箇所（ViewController側など）ではなく、仲介クラスやメソッド（講座では`Service`という名前をつけたクラスを作った）を使って行ったほうが良い理由をわかりやすく説明してください。**
+**（１１）データの取得と加工を、それが必要とする箇所（ViewController側など）ではなく、仲介クラスやメソッド（講座では`Service`というクラスを使った）を使って行ったほうが良い理由をわかりやすく説明してください。**  
+→[Answer]Previously in another question, it is asked that how to reduce same code in multiple viewControllers. Service Class would be so handy in that case. We can write common logics/functions in Service class so that we can use that from view controllers. <ServiceClass> n ----------- 1 <ViewControllers>  
+```swift
+class ValidationService {
+    
+    static func validateName(name: String, min: Int, max: Int) -> Bool {
+        return name.count >= min && name.count <= max
+    }
+    
+    static func validateEmailId(emailID: String) -> Bool {
+       let emailRegEx = "[A-Z0-9a-z._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,64}"
+       let trimmedString = emailID.trimmingCharacters(in: .whitespaces)
+       let validateEmail = NSPredicate(format:"SELF MATCHES %@", emailRegEx)
+       let isValidateEmail = validateEmail.evaluate(with: trimmedString)
+       return isValidateEmail
+    }
+    
+    static func validatePassword(password: String) -> Bool {
+       let passRegEx = "^[A-Za-z\\d]{6,255}$"
+       let trimmedString = password.trimmingCharacters(in: .whitespaces)
+       let validatePassord = NSPredicate(format:"SELF MATCHES %@", passRegEx)
+       let isvalidatePass = validatePassord.evaluate(with: trimmedString)
+       return isvalidatePass
+    }
+}
+      
+class SampleViewController: UIViewController {
+      .......
+      let name : String = ""
+      ...
+      ...
+      let isValidatedName = ValidationService.validateName(name, min: 1, max: 100)  
+}
+
+class SampleViewController2: UIViewController {
+      .......
+      let name : String = ""
+      ...
+      ...
+      let isValidatedName = ValidationService.validateName(name, min: 1, max: 100)  
+}
+
+```
 
 **（１２）サーバAPIからJSONデータを取得して、モデルクラスの形で呼び出し元まで返す過程を、準備のための実装フローも含めて、箇条書きでできるだけ詳しく、ロジックフローで説明してください。なお、ライブラリはAlamofire, Moya, SwiftyJson, ObjectMapperを使うものとします。**
-> 例：　Step1: XXクラスをXXライブラリの仕様に沿うよう、XXする。  
->　　　Step2: XXデータをXXライブラリのXXメソッドを使ってXXする。
+>     Step1: Make Model following the api response
+>     Step2: Request using Alamofire and get response - As using alamofire, JSONSerialization.jsonObject and do-catch is not needed
+>     Step3: Parse the response using SwiftyJson - As SwiftyJson doesn't require Casting
+>     Step4: After Parsing return as model
+
 
 ## Day5
 
@@ -445,7 +597,13 @@ class ContentService {
                 guard let safeJson = json else { return }
                 // run in main => UI thread
                 DispatchQueue.main.async {
-                    // TODO
+                    //TODO
+                    //Answer:13
+                    if let dataArray = Mapper<Feedable>().mapArray(JSONObject: safeJson.arrayObject) {
+                        completion?(dataArray)
+                    } else {
+                        failure?(nil,nil)
+                    }
                 }
             },
             error: { statusCode in
@@ -490,11 +648,16 @@ class SampleViewController: UIViewController {
             make.bottom.equalTo(view).offset(0)
         }
         let Dog = Dog()
-        customView.data = cat
+        customView.data = dog //error
     }
 }
 class SampleCustomView: UIView {
-    var data: ??? // TODO: 型名
+    var data: Animal {
+          didSet {
+             guard let name = data.name else {return}
+             nameLabel.text = name
+          }
+      }
     @IBOutlet private dynamic weak var nameLabel: UILabel!
 }
 ```
@@ -569,7 +732,7 @@ class SampleViewController: UIViewController {
     }
 }
 class SampleCustomView: UIView {
-    var viewController: SampleViewController?
+    var viewController: SampleViewController? // Answer:16 = Make it weak var
     @IBOutlet private dynamic weak var button: UIButton!
     @IBAction private func buttonTouchUpInside(_ sender: UIButton) {
         viewController?.onCustomViewChanged()
@@ -672,4 +835,3 @@ class ContentCollectionViewCell: UICollectionViewCell {
     @IBOutlet private dynamic weak var nameLabel: UILabel!
 }
 ```
-
