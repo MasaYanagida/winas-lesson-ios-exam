@@ -707,7 +707,13 @@ class SampleViewController: UIViewController {
 }
 
 class SampleCustomView: UIView {
-    var data: ??? // TODO: 型名
+    //var data: ??? // TODO: 型名
+    var data: Animal? {
+        didSet {
+            guard let name = data.name else { return }
+            nameLabel.text = name
+        }
+    }
     @IBOutlet private dynamic weak var nameLabel: UILabel!
 }
 ```
