@@ -5,7 +5,8 @@
 →[ANSWER]アプリのライフサイクルのKnowledgeと全体の設計を分かるのは大事なことです
 
 **（２）ViewControllerへの過度な依存や類似/同一コードの重複を避けるため、コード設計上どのような対策をとることが望ましいか、プレゼンテーション層（View）と処理・ビジネスロジック（Controller）それぞれの観点から、実際のコード例を挙げて説明してください。**  
-→[ANSWER]We can utilize Service/Helper/Utility for reducing the duplication of same codes.
+→[ANSWER]We can utilize Service/Helper/Utility for reducing the duplication of same codes.  
+[Answer]Service/Helper/Utility を利用して、類似のコードの重複を減らすことができます。
 ```
 class Helper {
       static func someTask() {
@@ -87,9 +88,9 @@ class SampleViewController: UIViewController {
 
 ```
 どんなときにlazyを使えるか？
--> when the view is not initially needed
--> when the initial value depend on other factors
--> to reduce the memory allocation for the memory heavy application
+-> when the view is not initially needed - ビューが最初から必要ない場合
+-> when the initial value depend on other factors - 初期値が他の要因に依存する場合
+-> to reduce the memory allocation for the memory heavy application - メモリ負荷の高いアプリケーションのメモリ割り当てを減らす
 ```
 
 
@@ -346,10 +347,10 @@ ANSWER: Keychain, Securityを必要なので
 ANSWER: CoreData/SQLite/Realm, Because the size of the data might be big
 
 ④　ユーザーまたはアプリ運営者が継続的に投稿しているコンテンツ  
-ANSWER: CoreData/SQLite/Realm, For the similar reason
+ANSWER: CoreData/SQLite/Realm, 同じい理由です
 
 ⑤　④のコンテンツのキャッシュ  
-ANSWER: CoreData/SQLite/Realm, For the similar reason
+ANSWER: CoreData/SQLite/Realm, 同じい理由です
 
 **（１０）以下の要件を満たすデータ群を、enumを用いて実際のコードで書いてください。**
 
@@ -402,6 +403,7 @@ class Gender: Object, Mappable {
 
 **（１１）データの取得と加工を、それが必要とする箇所（ViewController側など）ではなく、仲介クラスやメソッド（講座では`Service`というクラスを使った）を使って行ったほうが良い理由をわかりやすく説明してください。**  
 →[Answer]Previously in another question, it is asked that how to reduce same code in multiple viewControllers. Service Class would be so handy in that case. We can write common logics/functions in Service class so that we can use that from view controllers. <ServiceClass> n ----------- 1 <ViewControllers>  
+ServiceClassを使用して、同様のコードの記述を減らすことができます。
 ```swift
 class ValidationService {
     
@@ -445,10 +447,10 @@ class SampleViewController2: UIViewController {
 ```
 
 **（１２）サーバAPIからJSONデータを取得して、モデルクラスの形で呼び出し元まで返す過程を、準備のための実装フローも含めて、箇条書きでできるだけ詳しく、ロジックフローで説明してください。なお、ライブラリはAlamofire, Moya, SwiftyJson, ObjectMapperを使うものとします。**
->     Step1: Make Model following the api response
->     Step2: Request using Alamofire and get response - As using alamofire, JSONSerialization.jsonObject and do-catch is not needed
->     Step3: Parse the response using SwiftyJson - As SwiftyJson doesn't require Casting
->     Step4: After Parsing return as model
+>     Step1: Make Model following the api response - そのResponseのようにモデリを作る
+>     Step2: Request using Alamofire and get response - As using alamofire, JSONSerialization.jsonObject and do-catch is not needed - Alamofireを使ってRequestをしてResponseをもらう
+>     Step3: Parse the response using SwiftyJson - As SwiftyJson doesn't require Casting - SwiftJsonを使ってResponseをParseする
+>     Step4: After Parsing return as model - モデルにそのResponseをParseする
 
 
 ## Day5
