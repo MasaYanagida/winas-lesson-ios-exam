@@ -3,6 +3,8 @@
 
 **（１）モバイルアプリを開発する上で、設計上留意すべき点はどこになるか、サーバサイドやフロントエンドとの違いの観点から説明してください。**
 
+Answer: Memory Management (ARC), アプリのLifeCycle
+
 Answer: 
 #### Security
 - User information seccurity must be considered. 
@@ -18,12 +20,27 @@ Answer:
 - Consider different screen size from the beginning & use auto layout. So, the app looks same on various devices.
 - If you use tableView/CollectionView, consider the scroll performance. Use image cache, row cache etc for faster loading.
 
+翻訳：
+#### セキュリティ
+- 利用者情報の機密性を考慮しなければならない。
+- 暗号化を使用して API キー、ユーザーのメール、パスワードを保護します。
+#### 許可
+- アプリがユーザーの Bluetooth、マイク、フォト ギャラリー、カメラなどの使用許可を求めていることを確認します。plist ファイルを再確認して、許可テキストが含まれていることを確認します。
+#### サードパーティのライブラリを使用する場合は注意してください
+- サードパーティのライブラリを使用する場合は、最も信頼できるライブラリを使用してください。
+#### サーバ側
+- 最初から別の ```target``` を作成します。
+- サーバー側はデータを提供する責任があります。 大量のデータを受信する場合は、それらをバッチでロードします。 ただし、これは使用経験に影響を与えないことを確認してください。
+#### フロントエンド
+- 最初から違う画面サイズを考え、オートレイアウトを利用。 そのため、アプリはさまざまなデバイスで同じように見えます。
+- tableView/CollectionView を使用する場合は、スクロール性能を考慮してください。 読み込みを高速化するには、画像キャッシュ、行キャッシュなどを使用します。
 
 **（２）ViewControllerへの過度な依存や類似/同一コードの重複を避けるため、コード設計上どのような対策をとることが望ましいか、プレゼンテーション層（View）と処理・ビジネスロジック（Controller）それぞれの観点から、実際のコード例を挙げて説明してください。**
 
 Answer:
 
 First of all consider the following code snippets.
+翻訳：まず、次のコード スニペットを検討してください。
 
 ```swift
 // ViewController.swift
@@ -108,6 +125,12 @@ This is a massive `viewController`. Let’s start by looking for common function
 
 We can create an `extension` for proccessing & loading JSON from the bundle. Let\`s create a file called `Bundle+JSON.swift`. Now remove the following content from `viewDidLoad()` & insert the into the extension.
 
+翻訳：
+## コードの集中化
+これは巨大な「viewController」です。 ビューコントローラーから移動できる一般的な機能を探すことから始めましょう。表示されるのは、viewDidLoad() にはバンドルから JSON をロードするためのコードの大きなチャンクがあり、そこにある必要はありません。 いろいろなところでやりたいこと。
+
+バンドルから JSON を処理およびロードするための「拡張機能」を作成できます。 「Bundle+JSON.swift」というファイルを作成しましょう。 次に、「viewDidLoad()」から次のコンテンツを削除し、拡張機能に挿入します。
+
 ```swift
 extension Bundle {
 
@@ -132,21 +155,34 @@ extension Bundle {
 }
 ```
 Back in view controller, delete this line from viewDidLoad():
+翻訳：ビュー コントローラーに戻り、viewDidLoad() から次の行を削除します。
 
 ```swift projects = loadedProjects```
 Instead, we can call our new decode() method straight from the property definition:
+
+翻訳：代わりに、プロパティ定義から直接新しい decode() メソッドを呼び出すことができます。
+
 ```swift let projects: [Project] = Bundle.main.decode(from: "projects.json")```
 
 Not only has that removed a lot of code from our view controller, but it also turned projects from a variable to a constant – a small but important win.
+
+翻訳：これにより、View Controller から多くのコードが削除されただけでなく、プロジェクトが変数から定数に変わりました。これは、小さいながらも重要な勝利です。
 
 ## Model to model
 viewController.swift contains some other shared functionality: the ```makeAttributedString()``` method. This is designed to take the title and subtitle of a project, and return them as an attributed string that can be used in table view cells.
 
 Now cut the ```makeAttributedString()``` method to your clipboard, then paste it into the Project model. I don’t think this feels quite right as a method, so I would convert it to a computed property like this:
 
+翻訳：
+viewController.swift には、他のいくつかの共有機能が含まれています。```makeAttributedString()`` メソッドです。 これは、プロジェクトのタイトルとサブタイトルを取得し、それらをテーブル ビュー セルで使用できる属性付き文字列として返すように設計されています。
+
+次に、```makeAttributedString()`` メソッドをクリップボードに切り取り、Project モデルに貼り付けます。 これはメソッドとしてはあまり適切ではないと思うので、次のように計算されたプロパティに変換します。
+
 ```swift var attributedTitle: NSAttributedString { ```
 
-Now change the following line .
+Now change the following line .　
+翻訳：次に、次の行を変更します。
+
 ```swift cell.textLabel?.attributedText = makeAttributedString(title: project.title, subtitle: project.subtitle)```
 To
 ```swift cell.textLabel?.attributedText = project.attributedTitle```
@@ -163,6 +199,18 @@ Go to the File menu and choose New > File. Create a new Cocoa Touch Class subcla
 
 It should look like this:
 
+翻訳：
+この時点で、ViewController.swift は、テーブル ビュー データ ソースとして機能することと、テーブル ビュー デリゲートとして機能することの 2 つの主要な処理のみを担当します。 この 2 つのうち、データ ソースはきれいに分離できるため、常にリファクタリングの対象として簡単です。
+
+そのため、ViewController.swift からすべてのデータ ソース コードを取り出し、代わりに専用のクラスに入れます。 これにより、必要に応じてそのデータ ソース クラスを別の場所で再利用したり、必要に応じて別のデータ ソース タイプに切り替えることができます。
+
+[ファイル] メニューに移動し、[新規] > [ファイル] を選択します。 NSObject をサブクラス化する新しい Cocoa Touch クラスを作成し、「ProjectDataSource」という名前を付けます。 すぐに大量のコードをここに貼り付けますが、最初に 2 つのことを行う必要があります。
+
+- ファイルの先頭にインポート UIKit を追加します (まだ存在しない場合)。
+- この新しいクラスを UITableViewDataSource に準拠させる。
+
+次のようになります。
+
 ```swift
 import UIKit
 
@@ -175,6 +223,15 @@ Now for the important part: we need to move numberOfSections, numberOfRows, and 
 Now move the ```projects``` property from ViewController to ProjectDataSource. That will get rid of most, but not all, of the errors.
 
 Create this new property in ViewController.swift:
+
+翻訳：
+
+次に重要な部分です。ViewController.swift から、numberOfSections、numberOfRows、および cellForRowAt をそこに移動する必要があります。 文字通りクリップボードに切り取って ProjectDataSource 内に貼り付けることができますが、3 つのオーバーライド キーワードを削除する必要があります。
+
+次に、```projects``` プロパティを ViewController から ProjectDataSource に移動します。 これにより、ほとんどのエラーが解消されますが、すべてではありません。
+
+ViewController.swift にこの新しいプロパティを作成します。
+
 
 ```swift
 let dataSource = ProjectDataSource()
@@ -193,12 +250,16 @@ func project(at index: Int) -> Project {
 ```
 
 Now back in the ```didSelectRowAt``` method we can write this:
+翻訳：```didSelectRowAt``` メソッドに戻って、次のように記述できます。
 
 ```swift
 let project = dataSource.project(at: indexPath.row)
 ```
 
 Now your viewController looks very neat & clean. You can also use viewModel for data proccessing & update . Also you can use coordinator pattern to reduce the responsibility of viewController.
+
+翻訳：
+これで、あなたの viewController はとてもきれいできれいに見えます。 データの処理と更新に viewModel を使用することもできます。 また、コーディネーター パターンを使用して、viewController の責任を軽減することもできます。
 
 ## Day2
 
@@ -278,6 +339,16 @@ There are a few advantages in having a lazy property instead of a stored propert
 - The closure associated to the lazy property is executed only if you read that property. So if for some reason that property is not used (maybe because of some decision of the user) you avoid unnecessary allocation and computation.
 - You can populate a lazy property with the value of a stored property.
 - You can use ```self``` inside the closure of a lazy property
+
+翻訳：
+
+遅延プロパティを使用すると、初期化プロセスの一部として実行するのではなく、必要に応じて Swift 型の特定の部分を作成できます。 これは、オプションを回避したり、特定のプロパティの作成にコストがかかる可能性がある場合にパフォーマンスを向上させるために役立ちます。 また、ライフサイクルの後半まで型のセットアップの一部を延期できるため、初期化子をよりクリーンに保つのにも役立ちます。
+
+格納されたプロパティの代わりに遅延プロパティを使用することには、いくつかの利点があります。
+- 遅延プロパティに関連付けられたクロージャは、そのプロパティを読み取った場合にのみ実行されます。 したがって、何らかの理由でそのプロパティが使用されない場合 (おそらくユーザーの何らかの決定のため)、不必要な割り当てと計算を避けることができます。
+- 遅延プロパティに保存済みプロパティの値を設定できます。
+- 遅延プロパティのクロージャ内で ```self``` を使用できます
+
 
 ## Day3
 
@@ -565,6 +636,7 @@ extension UIImage {
 
 Answer: ```swift UserDefaults```
 This is just a flag. So, we don\`t need any external or heavy DB in this case. We can simply use the standard userDefaults. 
+翻訳：これはただのフラグです。 したがって、この場合、外部または重い DB は必要ありません。 標準の userDefaults を使用するだけです。
 
 ②　ログインが必要なアプリで、次回起動時にログインを省略するためのAPIキー
 
@@ -576,6 +648,9 @@ Answer: ```swift UserDefaults or KeyChain```
 Answer: ```swift CoreData or Realm``` . 
 
 The ammount of master data might be large. So, we can use core data or Realm. If the data is really large, the its wise to use Realm. Because Realm uses its own engine, simple and fast. Thanks to its zero-copy design, Realm is much faster than ORM, and often faster than SQLite either. Its also cross-platform. So you can use the same DB in both iOS and Android or others. 
+
+翻訳：
+マスターデータの量が多い可能性があります。 したがって、コアデータまたはRealmを使用できます。 データが非常に大きい場合は、Realm を使用するのが賢明です。 Realm は独自のエンジンを使用しているため、シンプルで高速です。 ゼロコピー設計のおかげで、Realm は ORM よりもはるかに高速であり、多くの場合 SQLite よりも高速です。 また、クロスプラットフォームです。 そのため、iOS と Android またはその他の両方で同じ DB を使用できます。
 
 ④　ユーザーまたはアプリ運営者が継続的に投稿しているコンテンツ
 answer: ```swift Realm``` 
@@ -643,6 +718,10 @@ class Content: Object, Mappable {
 
 Answer: A ```service``` class is very useful when you want to use the same chunk of function or logics in several places. it centralizes the code and handle logic from one single unit. It reduces the code redundancy. For example-
 
+翻訳：
+
+```service``` クラスは、関数やロジックの同じチャンクを複数の場所で使用したい場合に非常に便利です。 コードと処理ロジックを 1 つのユニットから一元化します。 コードの冗長性を減らします。 例えば-
+
 ```swift
 class OperationService {
     
@@ -666,6 +745,8 @@ class NumberService {
 
 ```
 Now we can use the same ```OperationService``` in various class .
+翻訳：
+これで、さまざまなクラスで同じ「OperationService」を使用できます。
 
 ```swift
 class ViewController1: UIViewController {
@@ -690,6 +771,8 @@ Answer:
 
 #### Step: 1
 According to the JSON response , create the model class. For example, consider the following JSON response.
+翻訳：
+JSONレスポンスに従って、モデルクラスを作成します。 たとえば、次の JSON 応答について考えてみましょう。
 
 ```json
 {
@@ -733,6 +816,11 @@ Now will create a Network layer using Alamofire.
 
 First define the possible errors case using ```enum```
 
+翻訳：
+次に、Alamofire を使用してネットワーク レイヤーを作成します。
+
+まず、```enum``` を使用して、起こりうるエラーのケースを定義します。
+
 ```swift
 // APIError.swift
 
@@ -760,6 +848,9 @@ enum APIError: String, Error {
 }
 ```
 Now we will prepare our Request Class.
+
+翻訳：
+次に、リクエスト クラスを準備します。
 
 ```swift
 
@@ -804,6 +895,7 @@ class APIRequest<T: Decodable>: URLRequestConvertible {
 
 ```
 Now its time to create API Client class. I will use RxSwift for reactive behaviour.
+翻訳：次に、API クライアント クラスを作成します。 リアクティブな動作には RxSwift を使用します。
 
 ```swift
 // APIClient.swift
@@ -856,6 +948,11 @@ final class APIClient {
 Our Network Layer is completed. Now we send a accual API request.
 Now write a Sample Request class that extends the ```APIRequest``` class.
 
+翻訳：
+
+ネットワーク層が完成しました。 次に、実際の API リクエストを送信します。
+次に、```API Request``` クラスを拡張する Sample Request クラスを作成します。
+
 ```swift
 
 // SampleRequest.swift
@@ -886,6 +983,7 @@ class SampleRequest: APIRequest<SampleResponse> {
 }
 ```
 Use this request in viewModel/Any where.
+翻訳：このリクエストを viewModel/Any where で使用します。
 
 ```swift
 // viewModel.swift
@@ -907,6 +1005,7 @@ func getSampleData() -> Single<[SampleDataModel]> {
 ```
 
 Now call your ```getSampleData()``` and subscribe the response.
+翻訳：次に、```getSampleData()``` を呼び出して、応答をサブスクライブします。
 ## Day5
 
 **（１３）複数の異なる型を持つデータ群を１つの配列で持ちたいとする。それらのデータをサーバAPIから取得した場合、どのように実装をすればいいのか、以下のコードのTODO箇所を埋める形でコードを書いてください。なお、ライブラリはAlamofire, Moya, SwiftyJson, ObjectMapperを使うものとします。**
