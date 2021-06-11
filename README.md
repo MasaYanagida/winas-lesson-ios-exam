@@ -669,6 +669,25 @@ answer: ```swift Realm```
 ⑤　④のコンテンツのキャッシュ
 answer: ```swift Realm```
 
+有効期限内のキャッシュがあったらキャッシュを使う、なければAPIを叩く
+
+```swift
+    func fetch(_ data: data_id) -> Single<[ArticleEntity]> {
+        do {
+            let realm = try Realm()
+            // キャッシュがあり、有効期限が現在時刻より未来だったらキャッシュを使う
+            if let cache = realm.object(ofType: Feed.self, forPrimaryKey: data_id.rawValue),
+                cache.expiredDate > now { // <- 日付の比較はよしなに
+                let entities = Array(cache.recentArticles)
+                return Single<[ArticleEntity]>.just(entities)
+            }
+        } catch {
+            logger?.error(error.localizedDescription)
+        }
+        // キャッシュがなければAPIを叩いたものを使う
+        return fetchLatest(data_id) // APIをヒット
+    }
+```
 **（１０）以下の要件を満たすデータ群を、enumを用いて実際のコードで書いてください。**
 
 > - 名前は`Gender`とすること
