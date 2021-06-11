@@ -666,6 +666,7 @@ The ammount of master data might be large. So, we can use core data or Realm. If
 
 ④　ユーザーまたはアプリ運営者が継続的に投稿しているコンテンツ
 answer: ```swift Realm``` 
+
 ⑤　④のコンテンツのキャッシュ
 answer: ```swift Realm```
 
