@@ -261,6 +261,24 @@ Now your viewController looks very neat & clean. You can also use viewModel for 
 翻訳：
 これで、あなたの viewController はとてもきれいできれいに見えます。 データの処理と更新に viewModel を使用することもできます。 また、コーディネーター パターンを使用して、viewController の責任を軽減することもできます。
 
+### View Layer
+The view layer has two important tasks:
+
+- presenting data to the user
+- and handling user interaction
+
+Views are dumb objects. They only know how to present data to the user. They don't know or understand what they are presenting.
+
+翻訳：
+
+### ビューレイヤー
+ビューレイヤーには2つの重要なタスクがあります。
+
+- ユーザーにデータを提示する
+- そしてユーザーインタラクションの処理
+
+ビューはダム オブジェクトです。 彼らはユーザーにデータを提示する方法しか知りません。 彼らは彼らが何を提示しているのかを知らないか理解していません
+
 ## Day2
 
 **（３）以下のコードのTODO箇所を埋めて、SnapKitによるレイアウトを実現するコードを書いてください。その際、下記の条件を満たすこと。**
