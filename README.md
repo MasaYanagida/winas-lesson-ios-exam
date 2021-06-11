@@ -304,27 +304,23 @@ import UIKit
 
 class SampleView: UIView {
     @IBOutlet private dynamic weak var view: UIView!
-}
 
-class ViewController: UIViewController {
-
-    private lazy var sampleView: SampleView = {
-        let sampleView = SampleView()
-        view.addSubview(sampleView)
-        return sampleView
-    }()
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        setupGesture()
+    }
     
-    override func viewDidLoad() {
-        super.viewDidLoad()
-        let tapGesture: UITapGestureRecognizer = UITapGestureRecognizer(target: self, action: #selector(didTapOnView))
-        sampleView.view.addGestureRecognizer(tapGesture)
-        sampleView.snp.makeConstraints { make in
-            make.top.bottom.trailing.leading.equalToSuperview()
-        }
+    required init?(coder aDcoder: NSCoder) {
+        super.init(coder: aDcoder)
+    }
+    
+    func setupGesture() {
+        let gestureRecognizer: UITapGestureRecognizer = UITapGestureRecognizer(target: self, action: #selector(didTapOnView))
+        view.addGestureRecognizer(gestureRecognizer)
     }
     
     @objc private func didTapOnView() {
-        print("Tapped On View !!!")
+        print("Tap")
     }
 }
 
