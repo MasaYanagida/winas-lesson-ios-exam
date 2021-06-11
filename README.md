@@ -692,12 +692,15 @@ class Content: Object, Mappable {
         self.init()
     }
 
-    func convert(genderId: Gender) -> String {
-        switch genderId {
-        case .unknown: return "不明"
-        case .male: return "女性"
-        case .female: return "男性"
-        } 
+    func convert() -> String {
+        switch gender {
+            case .male:
+                return Gender.female.name
+            case .female:
+                return Gender.male.name
+            case .unknown:
+                return Gender.unknown.name
+        }
     }
 
     func mapping(map: Map) {
