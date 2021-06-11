@@ -3,6 +3,7 @@
 
 **（１）モバイルアプリを開発する上で、設計上留意すべき点はどこになるか、サーバサイドやフロントエンドとの違いの観点から説明してください。**
 
+
 A.
 
 ------
@@ -33,6 +34,9 @@ View : ユーザーにデータを見せるためのUIを担当する
 ViewModel : ViewControllerで行うデータの扱いを担当してViewControllerの負担を減らす
 
 -----
+
+**（２）ViewControllerへの過度な依存や類似/同一コードの重複を避けるため、コード設計上どのような対策をとることが望ましいか、プレゼンテーション層（View）と処理・ビジネスロジック（Controller）それぞれの観点から説明してください。**
+
 
 ## Day2
 
@@ -378,7 +382,7 @@ extension UIImage {
 
 ## Day4
 
-**下記の各データを保存または取得するとき、どのような手法を用いて要件を満たせば良いか、その理由も含めて説明してください。**
+**（９）下記の各データを保存または取得するとき、どのような手法を用いて要件を満たせば良いか、その理由も含めて説明してください。**
 
 ①　アプリのインストール後チュートリアルの閲覧が完了したかどうかのフラグ
 
@@ -686,7 +690,6 @@ class Cat: Animal {
 protocol Animal {
     var name: String { get set }
 }
-
 class SampleViewController: UIViewController {
     private lazy var customView: SampleCustomView = {
         let customView = SampleCustomView()
@@ -696,16 +699,15 @@ class SampleViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         customView.snp.makeConstraints { make in
-             make.top.equalTo(view).offset(0)
-             make.left.equalTo(view).offset(0)
-             make.right.equalTo(view).offset(0)
-             make.bottom.equalTo(view).offset(0)
-         }
-         let Dog = Dog()
-         customView.data = cat
+            make.top.equalTo(view).offset(0)
+            make.left.equalTo(view).offset(0)
+            make.right.equalTo(view).offset(0)
+            make.bottom.equalTo(view).offset(0)
+        }
+        let Dog = Dog()
+        customView.data = cat
     }
 }
-
 class SampleCustomView: UIView {
     //var data: ??? // TODO: 型名
     var data: Animal? {
