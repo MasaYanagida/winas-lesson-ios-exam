@@ -665,48 +665,22 @@ answer: ```swift Realm```
 |名前 |男性 |女性 |不明 |
 
 ```swift
-import ObjectMapper
-import RealmSwift
-
 enum Gender: Int {
     case unknown = 0, male = 1, female = 2
     var name: String {
-        switch self {
-        case .unknown: return "不明"
-        case .male: return "男性"
-        case .female: return "女性"
-        }
+        selectGender(genderId: self)
     }
-}
-
-class Content: Object, Mappable {
-    @objc dynamic var id: Int = 0
-    @objc dynamic var name: String = ""
-    @objc dynamic var genderId: Int = Gender.unknown.rawValue
     
-    var gender: Gender {
-        return Gender(rawValue: genderId) ?? .unknown
-    }
-
-    required convenience init?(map: Map) {
-        self.init()
-    }
-
     func convert() -> String {
-        switch gender {
-            case .male:
-                return Gender.female.name
-            case .female:
-                return Gender.male.name
-            case .unknown:
-                return Gender.unknown.name
-        }
+        selectGender(genderId: self, isToggle: true)
     }
-
-    func mapping(map: Map) {
-        id <- map["id"]
-        name <- map["name"]
-        genderId <- map["gender"]
+    
+    func selectGender(genderId: Gender, isToggle: Bool = false) -> String {
+        switch self {
+            case .unknown: return "不明"
+            case .male: return (isToggle ? "女性" : "男性")
+            case .female: return (isToggle ? "男性" : "女性")
+        }
     }
 }
 ```
