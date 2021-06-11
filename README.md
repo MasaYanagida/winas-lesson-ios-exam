@@ -665,9 +665,11 @@ The ammount of master data might be large. So, we can use core data or Realm. If
 マスターデータの量が多い可能性があります。 したがって、コアデータまたはRealmを使用できます。 データが非常に大きい場合は、Realm を使用するのが賢明です。 Realm は独自のエンジンを使用しているため、シンプルで高速です。 ゼロコピー設計のおかげで、Realm は ORM よりもはるかに高速であり、多くの場合 SQLite よりも高速です。 また、クロスプラットフォームです。 そのため、iOS と Android またはその他の両方で同じ DB を使用できます。
 
 ④　ユーザーまたはアプリ運営者が継続的に投稿しているコンテンツ
+
 answer: ```swift Realm``` 
 
 ⑤　④のコンテンツのキャッシュ
+
 answer: ```swift Realm```
 
 有効期限内のキャッシュがあったらキャッシュを使う、なければAPIを叩く
