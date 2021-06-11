@@ -373,13 +373,13 @@ class SampleViewController: UIViewController {
 }
 
 extension SampleViewController: SampleCustomViewDelegate {
-    func didTapOnButton() {
+    func didTapOnButton(_ view: SampleCustomView) {
         // button pressed
     }
 }
 
 protocol SampleCustomViewDelegate {
-    func didTapOnButton()
+    func didTapOnButton(_ view: SampleCustomView)
 }
 
 class SampleCustomView: UIView {
@@ -404,9 +404,7 @@ class SampleCustomView: UIView {
     @IBAction private func buttonTouchUpInside(_ sender: UIButton) {
         // TODO
         Answer: 6
-        if let delegate = delegate {
-            delegate.didTapOnButton()
-        }
+        delegate?.didTapOnButton(self)
     }
 }
 ```
