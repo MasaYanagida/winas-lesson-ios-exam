@@ -793,16 +793,16 @@ First define the possible errors case using ```enum```
 まず、```enum``` を使用して、起こりうるエラーのケースを定義します。
 
 ```swift
-// APIError.swift
+// HTTPError.swift
 
-enum APIError: String, Error {
+enum HTTPError: String, Error {
     case unAuthorized  // Status code 401
     case forbidden // Status code 403
     case notFound  // Status code 404
     case conflict  // Status code 409
     case internalServerError  // Status code 500
     
-    static func getErrorMessage(_ error: APIError) -> String {
+    static func getErrorMessage(_ error: HTTPError) -> String {
         switch error {
             case unAuthorized:
                 return "Error Found : You must be Authenticated"
@@ -892,15 +892,15 @@ final class APIClient {
                     case .failure(let error):
                         switch response.response?.statusCode {
                             case 401:
-                                event(.error(APIError.unAuthorized))
+                                event(.error(HTTPError.unAuthorized))
                             case 403:
-                                event(.error(APIError.forbidden))
+                                event(.error(HTTPError.forbidden))
                             case 404:
-                                event(.error(APIError.notFound))
+                                event(.error(HTTPError.notFound))
                             case 409:
-                                event(.error(APIError.conflict))
+                                event(.error(HTTPError.conflict))
                             case 500:
-                                event(.error(APIError.internalServerError))
+                                event(.error(HTTPError.internalServerError))
                             default:
                                 event(.error(error))
                         }
@@ -1169,9 +1169,6 @@ class SampleViewController: UIViewController {
     }()
     override func viewDidLoad() {
         super.viewDidLoad()
-        let data = SampleData()
-        data.name = "テストデータ"
-        customView.data = data
         customView.snp.makeConstraints { make in
             make.top.equalTo(view).offset(0)
             make.left.equalTo(view).offset(0)
@@ -1295,9 +1292,9 @@ class SampleViewController: UIViewController {
     @IBOutlet private dynamic weak var customView: SampleCustomView!
     override func viewDidLoad() {
         super.viewDidLoad()
-        header.closure = { [weak self] in
-            guard let self = self else { return }
-            DispatchQueue.main.async {
+        header.closure = {
+            DispatchQueue.main.async { [weak self] in
+                guard let self = self else { return }
                 self.view.backgroundColor = .black
             }
         }
@@ -1319,8 +1316,7 @@ class SampleViewController: UIViewController {
     }
 
     // Answer: 
-    override func viewDidDisappear(_ animated: Bool) {
-        super.viewDidDisappear(animated)
+    denit() {
         NotificationCenter.default.removeObserver(self, name: UIResponder.keyboardWillShowNotification, object: nil)
     }
 
