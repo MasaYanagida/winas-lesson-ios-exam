@@ -3,7 +3,28 @@
 
 **（１）モバイルアプリを開発する上で、設計上留意すべき点はどこになるか、サーバサイドやフロントエンドとの違いの観点から説明してください。**
 
+
+A.
+
+------
+モバイルアプリを設計する時にはlife cycleを把握して全体を設計する必要がある。
+->モバイルアプリを開発は「神様の目」みたいな観点で全体一つ一つの画面の観点ではなく全体的な観点、全てのデータと情報の流れ、ユーザーのアクションを把握する必要がある。
+サーバーサイドやフロントエンドはページの間で一部のデータを引き継ぐだけ。
+
+------
+
 **（２）ViewControllerへの過度な依存や類似/同一コードの重複を避けるため、コード設計上どのような対策をとることが望ましいか、プレゼンテーション層（View）と処理・ビジネスロジック（Controller）それぞれの観点から説明してください。**
+
+A.
+
+-----
+プレゼンテーション層（View）：
+過度な依存や類似/同一コードの重複を避けるためカスタムビューを作って画面内のUI部品として分割して呼び出して処理する。
+
+処理・ビジネスロジック（Controller）：
+Service/Manager/Helperなどの部品を呼び出すことで複雑な処理、アプリ内の随所で使う機能を防ぐことでViewControllerへの過度な依存やコードの重複を避ける
+
+-----
 
 ## Day2
 
@@ -28,6 +49,14 @@ class SampleViewController: UIViewController {
         super.viewDidLoad()
         
         // TODO: ここでSnapKitを使ってレイアウト制約をつけてください
+        sampleView.snp.makeConstraints { make in
+        make.leading.equalTo(20) //左20ポイントマージン
+        make.trailing.equalTo(-20) //右に20ポイントマージン
+        make.height.equalTo(150) //高さは150ポイント
+        //make.center.equalTo(self.view) //中央に配置
+        make.centerY.equalToSuperview()
+
+}
     }
 }
 ```
@@ -42,11 +71,42 @@ import UIKit
 
 class SampleView: UIView {
     @IBOutlet private dynamic weak var view: UIView!
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        setGestureRecognizer()
+    }
+    
+    required init?(coder aDcoder: NSCoder) {
+        super.init(coder: aDcoder)
+    }
+
+    func setGestureRecognizer() {
+    let gestureRecognizer: UITapGestureRecognizer = UITapGestureRecognizer(target: self, action: #selector(tappedSampleView))
+        view.addGestureRecognizer(gestureRecognizer)
+    }
+    
+    @objc private func tappedSampleView() {
+        print("sampleView")
+    }
+    
 }
 ```
 
 **（５）あるビューやクラスを別のクラスのプロパティとして持つ場合、どんなときにlazyを使えば良いのか、またlazyを使うことでどんなメリットがあるのか、講座を通じて覚えたことや自分なりの考察を踏まえて説明してください。**
 
+A.
+------
+<!-- 1. varとして使う
+2. 最初requestする時初期化されてその後、値を保存します。従って最初の値を維持します。→letとしては使えない
+3. structとclassで使う -->
+
+lazyは初めて使うまでには演算してない。つまり、必要などころに呼ばれて無駄なメモリを使うのを抑えられます。そして計算した値を保存して再計算を防止します。
+
+lazyを使う時のメリット
+ - lazyを使用した場合接近した要素に対したものだけについて演算を行う→演算コストがたくさん使うクロージャを使って配列の要素を扱う時もっと効率的に管理ができる
+
+------
 ## Day3
 
 **（６）以下のコードを埋めて、UIViewController（呼び出し側）とカスタムビューとの間での処理のやりとりを実現するコードを書いてください。その際、下記の条件を満たすこと。**
@@ -71,17 +131,43 @@ class SampleViewController: UIViewController {
         data.name = "テストデータ"
         customView.data = data
     }
+    
+    //func updateData() {
+       // button event
+    //}
+}
+
+extension SampleViewController: SampleCustomViewDelegate {
+    func updateData(view: SampleCustomView) {
+        // button event
+    }
+}
+
+protocol SampleCustomViewDelegate {
+    func updateData(view: SampleCustomView)
 }
 
 class SampleCustomView: UIView {
-    var data: SampleData?
+    //var data: SampleData?
+    var data: SampleData? {
+        didSet {
+            update()
+        }
+    }
+    var delegate: SampleCustomViewDelegate?
+    
     func update() {
         // TODO
+        nameLabel.text = data.name
     }
     @IBOutlet private dynamic weak var nameLabel: UILabel!
     @IBOutlet private dynamic weak var button: UIButton!
     @IBAction private func buttonTouchUpInside(_ sender: UIButton) {
         // TODO
+        //if let delegate = delegate {
+        //   delegate.updateData()
+        //}
+        delegate?.updateData(self)
     }
 }
 ```
@@ -102,9 +188,21 @@ class SampleViewController: UIViewController {
     @IBOutlet private dynamic weak var imageView2: UIImageView!
     @IBOutlet private dynamic weak var imageView3: UIImageView!
     @IBOutlet private dynamic weak var imageView4: UIImageView!
+    
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         // TODO
+        self.imageView1.image = UIImage(named: "icon")
+        
+        let imagePath = Bundle.main.path(forResource: "icon2", ofType: "png")
+        self.imageView2.image = UIImage(contentsOfFile:imagePath!)
+        
+        let brandIcon = BrandIcon.twitter
+        imageView.image = UIImage.(icon: brandIcon, color: brandIcon.color, fontSize: 128)
+        
+        let url = URL(string: "https://sample.com/sample.jpg")
+        imageView4.kf.setImage(with: url)
     }
 }
 enum BrandIcon {
@@ -186,6 +284,24 @@ class SampleViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         // TODO
+        //let favoriteApp = BrandIcon.twitter
+        let brand = BrandIcon.twitter
+        let text = "<brand>\(favoriteApp.text)</brand>のアカウントを使って<red>ログイン</red>する"
+        let attributedString: NSAttributedString = text.styled(with: StringStyle(
+            .font(UIFont.default(20)),
+            .color(.black),
+            .lineSpacing(6),
+            .xmlRules([
+                .style("red", StringStyle(
+                    .color(.red)
+                )),
+                .style("brand", StringStyle(
+                    .font(UIFont.faBrand(20)),
+                    .color(favoriteApp.color)
+                ))
+            ])
+        ))
+        textLabel.attributedText = attributedString
     }
 }
 extension UIFont {
@@ -268,13 +384,33 @@ extension UIImage {
 
 ①　アプリのインストール後チュートリアルの閲覧が完了したかどうかのフラグ
 
+userDefault : 簡単にkey-valueを解除できる
+-> フラグを使うことならば外部DBを利用する必要ではなく閲覧前後のフラグをvalueとして設定すれば簡単に携帯内部で使える
+
 ②　ログインが必要なアプリで、次回起動時にログインを省略するためのAPIキー
+
+keyChain : 
+データを暗号化して保存するのでパスワードなどのログイン情報を保存する時保安性が良い
+
+userDefault : 
+ユーザー基本設定ような簡単なデータの値を扱いには良い
 
 ③　マスターデータ
 
+CoreData/SQLite :
+端末に保存して管理ができる
+->CRUD機能を通じてデータ修正、保存、削除などの管理ができる
+
 ④　ユーザーまたはアプリ運営者が継続的に投稿しているコンテンツ
 
+サーバー通信 :
+継続的にデータの更新があっても簡潔にデータを提供することができる
+->リアルタイムでデータを送ったり受け取ることができるのでサーバーとの連結が切れることではなければ連続的にデータの処理ができる。
+
 ⑤　④のコンテンツのキャッシュ
+
+CoreData/SQLite : 
+アプリに対して一時的にキャッシュ作業を行い、関連する機能の取り消しができる
 
 **（１０）以下の要件を満たすデータ群を、enumを用いて実際のコードで書いてください。**
 
@@ -291,13 +427,52 @@ extension UIImage {
 
 ```swift
 // TODO : ここにコードを記述してください
+enum Gender: Int {
+    case unknown = 0, male = 1, female = 2
+    var genderId: Int = Gender.unknown.rawValue
+
+    var name: String {
+        convert(genderId)
+    }
+
+    func convert(_ genderId: Int) -> String {
+        switch genderId {
+        case 0: return "不明"
+        case 1: return "女性"
+        case 2: return "男性"
+        }
+    }
+}
 ```
 
 **（１１）データの取得と加工を、それが必要とする箇所（ViewController側など）ではなく、仲介クラスやメソッド（講座では`Service`という名前をつけたクラスを作った）を使って行ったほうが良い理由をわかりやすく説明してください。**
 
+A.
+
+-----
+同じデータが複数のクラスで必要な場合必要な箇所で毎度同じデータを呼び出すクラスやメソッドを定義すると何度も同じコードを入力して維持保守の側面ですごく悪い、
+
+仲介クラスやメソッドを作って同じデータを提供する機能があればそれを必要な箇所で簡単に呼び出すのがViewControllerの負担も減らすしコード管理側面でも効率的。
+
+-----
+
 **（１２）サーバAPIからJSONデータを取得して、モデルクラスの形で呼び出し元まで返す過程を、準備のための実装フローも含めて、箇条書きでできるだけ詳しく、ロジックフローで説明してください。なお、ライブラリはAlamofire, Moya, SwiftyJson, ObjectMapperを使うものとします。**
 > 例：　Step1: XXクラスをXXライブラリの仕様に沿うよう、XXする。  
 >　　　Step2: XXデータをXXライブラリのXXメソッドを使ってXXする。
+
+A.
+
+-----
+Step1: 列挙型でMoyaライブラリの仕様にそうようにTargetTypeの属性を宣言する。
+
+Step2: 宣言したMoyaライブラリのpathからAPI通信ができるようにAlamofireライブラリ仕様に従って宣言する。
+
+Step3: Alamofireライブラリで通信したデータをJson型で表示するためSwiftyJsonの仕様の通りに宣言する。
+->responseで受け取ったデータを別のプロセスが必要なくjson()に入れるだけて自動的に仕組みがparsingできるし必要なkeyだけ読んで使う
+
+Step4: 取得したデータをModelクラスでマッピングするためObjectMapperを使ってJsonデータをModelにマッピングする。
+
+-----
 
 ## Day5
 
@@ -446,6 +621,24 @@ class ContentService {
                 // run in main => UI thread
                 DispatchQueue.main.async {
                     // TODO
+                    var dataArray = [Feedable]()
+                    safeJson.arrayValue.forEach { jsonObject in
+                        guard let contentTypeId = jsonObject["content_type"].int,
+                            let contentType = FeedContentType(rawValue: contentTypeId) else {
+                            return
+                        }
+                        switch contentType {
+                        case .dog:
+                            if let dog = Mapper<Dog>().map(JSONObject: jsonObject.dictionaryObject) {
+                                dataArray.append(dog)
+                            }
+                        case .cat:
+                            if let cat = Mapper<Cat>().map(JSONObject: jsonObject.dictionaryObject) {
+                                dataArray.append(cat)
+                            }
+                        }
+                    }
+                    completion?(dataArray)
                 }
             },
             error: { statusCode in
@@ -489,12 +682,24 @@ class SampleViewController: UIViewController {
             make.right.equalTo(view).offset(0)
             make.bottom.equalTo(view).offset(0)
         }
-        let Dog = Dog()
+        let cat = Cat()
         customView.data = cat
     }
 }
 class SampleCustomView: UIView {
-    var data: ??? // TODO: 型名
+    //var data: ??? // TODO: 型名
+    var data: Animal? {
+        didSet {
+            guard let name = data.name else { return }
+            nameLabel.text = name
+        }
+    }
+    //ジェネリクス使った場合
+    var data: Anuimal? { _ in
+            guard let name = data.name else { return }
+            nameLabel.text = name
+    }
+
     @IBOutlet private dynamic weak var nameLabel: UILabel!
 }
 ```
@@ -569,7 +774,8 @@ class SampleViewController: UIViewController {
     }
 }
 class SampleCustomView: UIView {
-    var viewController: SampleViewController?
+    // var viewController: SampleViewController?
+    weak var viewController: SampleViewController?
     @IBOutlet private dynamic weak var button: UIButton!
     @IBAction private func buttonTouchUpInside(_ sender: UIButton) {
         viewController?.onCustomViewChanged()
@@ -586,12 +792,17 @@ class SampleViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         header.closure = {
-            view.backgroundColor = .black
+            //view.backgroundColor = .black
+                DispatchQueue.main.async { [weak self] in
+                 guard let self = self else { return }
+                 self.view.backgroundColor = .black
+             }
         }
     }
 }
 class SampleCustomView: UIView {
-    var closure: (() -> Void)?
+    var closure: (() -> Void)? 
+    //private var closure: (() -> Void)? 
 }
 ```
 
@@ -604,6 +815,16 @@ class SampleViewController: UIViewController {
         super.viewDidLoad()
         NotificationCenter.default.addObserver(self, selector: #selector(keyboardWillShow(_:)), name: UIResponder.keyboardWillShowNotification, object: nil)
     }
+
+    deinit() {
+        NotificationCenter.default.removeObserver(self, name: UIResponder.keyboardWillShowNotification, object: nil)
+    }
+
+    override func viewWillDisappear(animated: Bool) {
+        super.viewWillDisappear(animated)
+        NotificationCenter.default.removeObserver(self, name: UIResponder.keyboardWillShowNotification, object: nil)
+    }
+
     @objc private func keyboardWillShow(_ notification: Foundation.Notification) {
         print("keyboardWillShow!!")
     }
@@ -623,6 +844,9 @@ class SampleViewController: UIViewController {
     var contents = [Content]()
     override func viewDidLoad() {
         super.viewDidLoad()
+            for _ in 0 ..< 20 {
+            contents.append(Content.create())
+        }
     }
     @IBOutlet private dynamic weak var collectionView: UICollectionView! {
         didSet {
@@ -654,16 +878,37 @@ extension SampleCollectionViewController: UICollectionViewDelegate {
 }
 extension SampleCollectionViewController: UICollectionViewDelegateFlowLayout {
     func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, sizeForItemAt indexPath: IndexPath) -> CGSize {
-    let content = contents[indexPath.row]
+    guard let content = contents[safe: indexPath.row] else { return .zero }
         return ContentCollectionViewCell.sizeForItem(content: content, width: collectionView.bounds.width)
     }
 }
 class ContentCollectionViewCell: UICollectionViewCell {
     // TODO
+        struct Static {
+        static var cell = ContentCollectionViewCell.fromNib()
+        static let cache = NSCache<NSString, NSValue>()
+    }
+
     class func sizeForItem(content: Content, width: CGFloat) -> CGSize {
         // TODO
-        return .zero
+        let cacheKey: NSString = "ContentCollectionViewCell:\(content.id)" as NSString
+        if let size = Static.cache.object(forKey: cacheKey) as? CGSize {
+            return size
+        }
+        let cell = Static.cell
+        cell.content = content
+        cell.frame.size = CGSize(width: width, height: 0)
+        cell.setNeedsLayout()
+        var size = cell.systemLayoutSizeFitting(
+            CGSize(width: width, height: 0),
+            withHorizontalFittingPriority: .required,
+            verticalFittingPriority: .defaultLow
+        )
+        size.width = width
+        Static.cache.setObject(NSValue(cgSize: size), forKey: cacheKey)
+        return size
     }
+
     var content: Content?
     private func updateView(_ content: Content) {
         nameLabel.text = content?.name ?? ""
