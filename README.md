@@ -8,7 +8,8 @@ A.
 
 ------
 モバイルアプリを設計する時にはlife cycleを把握して全体を設計する必要がある。
-
+->モバイルアプリを開発は「神様の目」みたいな観点で全体一つ一つの画面の観点ではなく全体的な観点、全てのデータと情報の流れ、ユーザーのアクションを把握する必要がある。
+サーバーサイドやフロントエンドはページの間で一部のデータを引き継ぐだけ。
 ------
 
 **（２）ViewControllerへの過度な依存や類似/同一コードの重複を避けるため、コード設計上どのような対策をとることが望ましいか、プレゼンテーション層（View）と処理・ビジネスロジック（Controller）それぞれの観点から説明してください。**
@@ -16,27 +17,12 @@ A.
 A.
 
 -----
-ViewControllerの負担を減らすため「MVVC」もしくは「MVVM」などのパータンを利用して開発します。
+プレゼンテーション層（View）：
+過度な依存や類似/同一コードの重複を避けるためカスタムビューを作って画面内のUI部品として分割して呼び出して処理する。
 
-①MVVCの場合
-
-Model + View + ViewController
-Model : アプリのデータとビジネスロジックを持っている
-View : ユーザーにデータを見せるためのUIを担当する
-ViewController : Viewからユーザーのrequestを認識してModelと連携する
-
-②MVVMの場合
-
-Model + View + ViewModel
-
-Model : アプリのデータとビジネスロジックを持っている
-View : ユーザーにデータを見せるためのUIを担当する
-ViewModel : ViewControllerで行うデータの扱いを担当してViewControllerの負担を減らす
-
+処理・ビジネスロジック（Controller）：
+Service/Manager/Helperなどの部品を呼び出すことで複雑な処理、アプリ内の随所で使う機能を防ぐことでViewControllerへの過度な依存やコードの重複を避ける
 -----
-
-**（２）ViewControllerへの過度な依存や類似/同一コードの重複を避けるため、コード設計上どのような対策をとることが望ましいか、プレゼンテーション層（View）と処理・ビジネスロジック（Controller）それぞれの観点から説明してください。**
-
 
 ## Day2
 
@@ -65,7 +51,9 @@ class SampleViewController: UIViewController {
         make.leading.equalTo(20) //左20ポイントマージン
         make.trailing.equalTo(-20) //右に20ポイントマージン
         make.height.equalTo(150) //高さは150ポイント
-        make.center.equalTo(self.view) //中央に配置
+        //make.center.equalTo(self.view) //中央に配置
+        make.centerY.equalToSuperview()
+
 }
     }
 }
@@ -81,29 +69,23 @@ import UIKit
 
 class SampleView: UIView {
     @IBOutlet private dynamic weak var view: UIView!
-}
 
-class ViewController: UIViewController ,UIGestureRecognizerDelegate {
-
-var sampleView = SampleView()
-
-    override func viewDidLoad() {
-        super.viewDidLoad()
-        
-        let tapGesture:UITapGestureRecognizer = UITapGestureRecognizer(
-            target: self,
-            action: #selector(ViewController.tapped(_:)))
-        
-        // デリゲートをセット
-        tapGesture.delegate = self
-        
-        self.sampleView.view.addGestureRecognizer(tapGesture)
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        setGestureRecognizer()
     }
- 
-    @objc func tapped(_ sender: UITapGestureRecognizer){
-        if sender.state == .ended {
-            print("タップ")
-        }
+    
+    required init?(coder aDcoder: NSCoder) {
+        super.init(coder: aDcoder)
+    }
+
+    func setGestureRecognizer() {
+    let gestureRecognizer: UITapGestureRecognizer = UITapGestureRecognizer(target: self, action: #selector(tappedSampleView))
+        view.addGestureRecognizer(gestureRecognizer)
+    }
+    
+    @objc private func tappedSampleView() {
+        print("sampleView")
     }
     
 }
@@ -113,9 +95,15 @@ var sampleView = SampleView()
 
 A.
 ------
-1. varとして使う
+<!-- 1. varとして使う
 2. 最初requestする時初期化されてその後、値を保存します。従って最初の値を維持します。→letとしては使えない
-3. structとclassで使う
+3. structとclassで使う -->
+
+lazyは初めて使うまでには演算してない。つまり、必要などころに呼ばれて無駄なメモリを使うのを抑えられます。そして計算した値を保存して再計算を防止します。
+
+lazyを使う時のメリット
+ - lazyを使用した場合接近した要素に対したものだけについて演算を行う→演算コストがたくさん使うクロージャを使って配列の要素を扱う時もっと効率的に管理ができる
+
 ------
 ## Day3
 
@@ -132,7 +120,7 @@ class SampleData {
     var name: String = ""
 }
 
-class SampleViewController: UIViewController, SampleCustomViewDelegate {
+class SampleViewController: UIViewController {
     @IBOutlet private dynamic weak var customView: SampleCustomView!
     
     override func viewDidLoad() {
@@ -142,13 +130,19 @@ class SampleViewController: UIViewController, SampleCustomViewDelegate {
         customView.data = data
     }
     
-    func updateData() {
+    //func updateData() {
        // button event
+    //}
+}
+
+extension SampleViewController: SampleCustomViewDelegate {
+    func updateData(view: SampleCustomView) {
+        // button event
     }
 }
 
 protocol SampleCustomViewDelegate {
-    func updateData()
+    func updateData(view: SampleCustomView)
 }
 
 class SampleCustomView: UIView {
@@ -168,9 +162,10 @@ class SampleCustomView: UIView {
     @IBOutlet private dynamic weak var button: UIButton!
     @IBAction private func buttonTouchUpInside(_ sender: UIButton) {
         // TODO
-        if let delegate = delegate {
-            delegate.updateData()
-        }
+        //if let delegate = delegate {
+        //   delegate.updateData()
+        //}
+        delegate?.updateData(self)
     }
 }
 ```
@@ -287,7 +282,8 @@ class SampleViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         // TODO
-        let favoriteApp = BrandIcon.twitter
+        //let favoriteApp = BrandIcon.twitter
+        let brand = BrandIcon.twitter
         let text = "<brand>\(favoriteApp.text)</brand>のアカウントを使って<red>ログイン</red>する"
         let attributedString: NSAttributedString = text.styled(with: StringStyle(
             .font(UIFont.default(20)),
@@ -387,6 +383,7 @@ extension UIImage {
 ①　アプリのインストール後チュートリアルの閲覧が完了したかどうかのフラグ
 
 userDefault : 簡単にkey-valueを解除できる
+-> フラグを使うことならば外部DBを利用する必要ではなく閲覧前後のフラグをvalueとして設定すれば簡単に携帯内部で使える
 
 ②　ログインが必要なアプリで、次回起動時にログインを省略するためのAPIキー
 
@@ -400,11 +397,13 @@ userDefault :
 
 CoreData/SQLite :
 端末に保存して管理ができる
+->CRUD機能を通じてデータ修正、保存、削除などの管理ができる
 
 ④　ユーザーまたはアプリ運営者が継続的に投稿しているコンテンツ
 
 サーバー通信 :
 継続的にデータの更新があっても簡潔にデータを提供することができる
+->リアルタイムでデータを送ったり受け取ることができるのでサーバーとの連結が切れることではなければ連続的にデータの処理ができる。
 
 ⑤　④のコンテンツのキャッシュ
 
@@ -428,42 +427,18 @@ CoreData/SQLite :
 // TODO : ここにコードを記述してください
 enum Gender: Int {
     case unknown = 0, male = 1, female = 2
+    var genderId: Int = Gender.unknown.rawValue
+
     var name: String {
-        switch self {
-        case .unknown: return "不明"
-        case .male: return "男性"
-        case .female: return "女性"
+        convert(genderId)
+    }
+
+    func convert(_ genderId: Int) -> String {
+        switch genderId {
+        case 0: return "不明"
+        case 1: return "女性"
+        case 2: return "男性"
         }
-    }
-}
-
-class Content: Object {
-
-        var genderId: Int = Gender.unknown.rawValue
-
-        var gender: Gender {
-        return Gender(rawValue: genderId) ?? .unknown
-    }
-        var description: String {
-        return "gender= \(gender.name)"
-    }
-    
-    func convert(_ genderId: Int) {
-        if genderId == 1 {
-            return 2
-        } else if genderId == 2 {
-            return 1
-        } else {
-            return 0
-        }
-    }
-    var convertId = convert(genderId)
-    var gender2: Gender {
-        return Gender(rawValue: convertId) ?? .unknown
-    }
-
-    var description2: String {
-        return "gender= \(gender2.name)"
     }
 }
 ```
@@ -491,6 +466,7 @@ Step1: 列挙型でMoyaライブラリの仕様にそうようにTargetTypeの�
 Step2: 宣言したMoyaライブラリのpathからAPI通信ができるようにAlamofireライブラリ仕様に従って宣言する。
 
 Step3: Alamofireライブラリで通信したデータをJson型で表示するためSwiftyJsonの仕様の通りに宣言する。
+->responseで受け取ったデータを別のプロセスが必要なくjson()に入れるだけて自動的に仕組みがparsingできるし必要なkeyだけ読んで使う
 
 Step4: 取得したデータをModelクラスでマッピングするためObjectMapperを使ってJsonデータをModelにマッピングする。
 
@@ -704,7 +680,7 @@ class SampleViewController: UIViewController {
             make.right.equalTo(view).offset(0)
             make.bottom.equalTo(view).offset(0)
         }
-        let Dog = Dog()
+        let cat = Cat()
         customView.data = cat
     }
 }
@@ -716,6 +692,12 @@ class SampleCustomView: UIView {
             nameLabel.text = name
         }
     }
+    //ジェネリクス使った場合
+    var data: Anuimal? { _ in
+            guard let name = data.name else { return }
+            nameLabel.text = name
+    }
+
     @IBOutlet private dynamic weak var nameLabel: UILabel!
 }
 ```
@@ -808,13 +790,17 @@ class SampleViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         header.closure = {
-            view.backgroundColor = .black
+            //view.backgroundColor = .black
+                DispatchQueue.main.async { [weak self] in
+                 guard let self = self else { return }
+                 self.view.backgroundColor = .black
+             }
         }
     }
 }
 class SampleCustomView: UIView {
-    //var closure: (() -> Void)? 
-    private var closure: (() -> Void)? 
+    var closure: (() -> Void)? 
+    //private var closure: (() -> Void)? 
 }
 ```
 
@@ -825,14 +811,18 @@ import UIKit
 class SampleViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
-        //NotificationCenter.default.addObserver(self, selector: #selector(keyboardWillShow(_:)), name: UIResponder.keyboardWillShowNotification, object: nil)
-        NotificationCenter.default.addObserver(self, selector: #selector(keyboardWillShow(_:)), name: UIResponder.keyboardWillShowNotification, object: nil){
-        [weak self] (_) in
-            guard let self = self else{
-                return
-            }
-        }
+        NotificationCenter.default.addObserver(self, selector: #selector(keyboardWillShow(_:)), name: UIResponder.keyboardWillShowNotification, object: nil)
     }
+
+    deinit() {
+        NotificationCenter.default.removeObserver(self, name: UIResponder.keyboardWillShowNotification, object: nil)
+    }
+
+    override func viewWillDisappear(animated: Bool) {
+        super.viewWillDisappear(animated)
+        NotificationCenter.default.removeObserver(self, name: UIResponder.keyboardWillShowNotification, object: nil)
+    }
+
     @objc private func keyboardWillShow(_ notification: Foundation.Notification) {
         print("keyboardWillShow!!")
     }
@@ -852,6 +842,9 @@ class SampleViewController: UIViewController {
     var contents = [Content]()
     override func viewDidLoad() {
         super.viewDidLoad()
+            for _ in 0 ..< 20 {
+            contents.append(Content.create())
+        }
     }
     @IBOutlet private dynamic weak var collectionView: UICollectionView! {
         didSet {
@@ -883,7 +876,7 @@ extension SampleCollectionViewController: UICollectionViewDelegate {
 }
 extension SampleCollectionViewController: UICollectionViewDelegateFlowLayout {
     func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, sizeForItemAt indexPath: IndexPath) -> CGSize {
-    let content = contents[indexPath.row]
+    guard let content = contents[safe: indexPath.row] else { return .zero }
         return ContentCollectionViewCell.sizeForItem(content: content, width: collectionView.bounds.width)
     }
 }
