@@ -2,7 +2,28 @@
 ## Day1
 
 **（１）モバイルアプリを開発する上で、設計上留意すべき点はどこになるか、サーバサイドやフロントエンドとの違いの観点から説明してください。**  
-→[ANSWER]アプリのライフサイクルのKnowledgeと全体の設計を分かるのは大事なことです
+→[ANSWER]アプリのライフサイクルのKnowledgeと全体の設計を分かるのは大事なことです.  
+Design:  
+- Decide about app architecture, eg: MVC vs MVVM, swiftui vs uikit  
+
+FrontEnd:  
+- The goal to create a design that is both visually appealing and easy to navigate/intuitive. UI and UX of the app should also comply with Apple’s guidelines.  
+- While creating the view using auto-layout, consider different size of devices so that it the elements place perfectly for smaller screen(iPhone5) to bigger screen (iPhone12proMax)
+- Reduce loading time of elements (eg. rows of tableView)by considering caching, memory management and optimizing backEnd  
+- Don't use any method that is announced to be deprecated after certain time
+
+BackEnd:
+- Initially create different target for different environment, eg: DEV, STG, PROD  
+- Optimize Data receiving process from API  
+- Encrypt saved data in local storage, eg: Login Credentials, Api Keys  
+- While using other 3rd party libraries, specify version to avoid uncessary error of updated version
+- Don't use any method that is announced to be deprecated after certain time
+
+Reduce/Optimize App Size: This is also very important factor  
+- Delete unused assets.
+- Reduce Used assets size without considering quality. For example: For images it's recommended to use 8-bit PNGs, for Audios you may use lower bit rate audios.  
+- Don’t make unnecessary modifications to files while App Updates.  
+- Adopt On-Demand Resources to avoid downloading all assets at first download.  
 
 **（２）ViewControllerへの過度な依存や類似/同一コードの重複を避けるため、コード設計上どのような対策をとることが望ましいか、プレゼンテーション層（View）と処理・ビジネスロジック（Controller）それぞれの観点から、実際のコード例を挙げて説明してください。**  
 →[ANSWER]We can utilize Service/Helper/Utility for reducing the duplication of same codes.  
@@ -14,6 +35,93 @@ class Helper {
 }
 // in controllers
 Helper.someTask()
+```  
+プレゼンテーション層（View）  
+Considering the code snippet in below, It’s getting the user input and showing using table view
+```
+class ViewController: UIViewController {
+
+  @IBOutlet weak var tableView: UITableView!
+
+  override func viewDidLoad() {
+    super.viewDidLoad()
+    self.tableView.register(UITableViewCell.self, forCellReuseIdentifier: "cell")
+  }
+}
+
+extension ViewController: UITableViewDataSource {
+
+  func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
+    return 100
+  }
+
+  func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+    guard let cell = tableView.dequeueReusableCell(withIdentifier: "cell") else { fatalError() }
+    cell.textLabel?.text = "Row \(indexPath.item + 1)"
+    return cell
+  }
+}
+
+extension ViewController: UITableViewDelegate {
+
+  func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+    print("Selected row \(indexPath.item + 1)")
+    tableView.deselectRow(at: indexPath, animated: true)
+  }
+}
+```  
+We can create an adapter named TableViewAdapter.swift and move delegate and data source code there.  
+```
+final class TableViewAdapter: NSObject, UITableViewDataSource {
+
+  let tableView: UITableView
+
+  init(tableView: UITableView) {
+    self.tableView = tableView
+    super.init()
+
+    self.tableView.register(UITableViewCell.self, forCellReuseIdentifier: "cell")
+
+    self.tableView.dataSource = self
+    self.tableView.delegate = self
+  }
+
+  func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
+    return 100
+  }
+
+  func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+    guard let cell = tableView.dequeueReusableCell(withIdentifier: "cell") else { fatalError() }
+    cell.textLabel?.text = "Row \(indexPath.item + 1)"
+    return cell
+  }
+}
+
+extension TableViewAdapter: UITableViewDelegate {
+
+  func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+    print("Selected row \(indexPath.item + 1)")
+    tableView.deselectRow(at: indexPath, animated: true)
+  }
+}
+```
+What we have doen here is -  
+1. We added a tableView reference in the adapter file.
+2. We added an initializer to get the tableView as the adapter initializes.  
+
+Now we will simply add the adapter in view controller, and the view controller will be so neat and clean.
+```
+class ViewController: UIViewController {
+
+  @IBOutlet weak var tableView: UITableView!
+
+  private var adapter: TableViewAdapter!
+
+  override func viewDidLoad() {
+    super.viewDidLoad()
+    self.adapter = TableViewAdapter(tableView: self.tableView)
+  }
+}
 ```
 ## Day2
 
@@ -42,9 +150,8 @@ class SampleViewController: UIViewController {
         sampleView.snp.makeConstraints { make in
             make.left.equalTo(view).offset(20)
             make.right.equalTo(view).offset(-20)
-            make.width.equalToSuperview()
-            make.centerY.centerX.equalToSuperview()
-            make.height.equalTo(100) 
+            make.centerY.equalToSuperview()
+            make.height.equalTo(150) 
         }
     }
 }
@@ -60,26 +167,15 @@ import UIKit
 
 class SampleView: UIView {
     @IBOutlet private dynamic weak var view: UIView!
-}
 
-//ANSWER:4
-
-class SampleViewController: UIViewController {
-    public var sampleView: SampleView! {
-        guard isViewLoaded else {
-            return nil
-        }
-        return (view as! SampleView)
-    }
-    override func viewDidLoad() {
-        super.viewDidLoad()
-    
+    override init() {
+        super.init(frame: frame)
         let gestureRecognizer = UITapGestureRecognizer(target: self, action: #selector(changeImage))
         sampleView.addGestureRecognizer(gestureRecognizer)
     }
     
     @objc func changeImage() {
-        print("something)
+        print("something")
     }
 }
 ```
@@ -110,11 +206,11 @@ class SampleData {
 }
 
 //Answer:6
-protocol SampleCustomViewControllerDelegate {
-    func buttonTapped()
+protocol SampleCustomViewDelegate {
+    func buttonTapped(_ view: SampleCustomView)
 }
 //Answer:6
-class SampleViewController: UIViewController, SampleCustomViewControllerDelegate {
+class SampleViewController: UIViewController {
     @IBOutlet private dynamic weak var customView: SampleCustomView!
 
     override func viewDidLoad() {
@@ -124,21 +220,31 @@ class SampleViewController: UIViewController, SampleCustomViewControllerDelegate
         customView.data = data
     }
 }
+extension SampleViewController: SampleCustomViewDelegate {
+    func updateData(view: SampleCustomView) {
+        // button event
+    }
+}
 
 class SampleCustomView: UIView {
-    var data: SampleData?
+    var data: SampleData? {
+        didSet {
+            update()
+        }
+    }
+
     func update() {
         // TODO
         //Answer:6
-        nameLabel.text = data.name
+        nameLabel.text = data.name ?? ""
     }
     @IBOutlet private dynamic weak var nameLabel: UILabel!
     @IBOutlet private dynamic weak var button: UIButton!
-    var delegate:SampleCustomViewControllerDelegate?
+    var delegate: SampleCustomViewDelegate?
     @IBAction private func buttonTouchUpInside(_ sender: UIButton) {
         // TODO
         //Answer:6
-        delegate.buttonTapped()
+        delegate.buttonTapped(self)
     }
 }
 ```
@@ -164,11 +270,11 @@ class SampleViewController: UIViewController {
         // TODO
         //Answer:7
         let imgUrl = "https://sample.com/sample.jpg"
-        let brancIcon = BrandIcon.twitter
+        let brandIcon = BrandIcon.twitter
         imageView1.image = UIImage(named: “icon”)
         imageView2.image = UIImage(named: “icon2.png”, in: Bundle(for: type(of:self)))
         imageView3.image = UIImage.brandIcon(icon: brandIcon, color: brandIcon.color)
-        imageView4.setImage(with: imgUrl)
+        imageView4.kf.setImage(with: imgUrl)
     }
 }
 enum BrandIcon {
@@ -338,19 +444,19 @@ extension UIImage {
 **（９）下記の各データを保存するとき、どのような手法を用いて要件を満たせば良いか、その理由も含めて説明してください。**
 
 ①　アプリのインストール後チュートリアルの閲覧が完了したかどうかのフラグ  
-ANSWER: Flagは地裁データなので、UserDefaultに保存します
+ANSWER: FlagはBoolean(小さい値)なので、UserDefaultに保存します. UserDefaultから早くにAccessすることもできます
 
 ②　ログインが必要なアプリで、次回起動時にログインを省略するためのAPIキー  
-ANSWER: Keychain, Securityを必要なので
+ANSWER: Keychainを使います。UserDefaultをじゃなくてキーチェーンの理由はキーチェーンはユーザーのデフォルトよりも安全です
 
 ③　マスターデータ  
-ANSWER: CoreData/SQLite/Realm, Because the size of the data might be big
+ANSWER: CoreData, Because the size of the data might be big, and as CoreData is a graph diagram, if the database is huge than CoreData will allow us to establish relations between entities (one-to-one, one-to-many, etc.)
 
 ④　ユーザーまたはアプリ運営者が継続的に投稿しているコンテンツ  
-ANSWER: CoreData/SQLite/Realm, 同じい理由です
+ANSWER: CoreData, Because the size of the data might be big, and as CoreData is a graph diagram, if the database is huge than CoreData will allow us to establish relations between entities (one-to-one, one-to-many, etc.)
 
 ⑤　④のコンテンツのキャッシュ  
-ANSWER: CoreData/SQLite/Realm, 同じい理由です
+ANSWER: Realm, If there is cache is not expired than it will use the cache or otherwise API will be called
 
 **（１０）以下の要件を満たすデータ群を、enumを用いて実際のコードで書いてください。**
 
@@ -370,17 +476,12 @@ enum Gender: Int {
       case unknown = 0
       case male    = 1
       case female  = 2
-      var name: String {
-            case .unknown: return "不明"
-            case .male:    return "男性"
-            case .female:  return "女性"
-      }
-}
+      var genderId: Int
 
-class Gender: Object, Mappable {
-      @objc dynamic var name: String = ""
-      @objc dynamic var id: Int = Gender.unknown.rawValue
-      
+      var name: String {
+        convert(genderId)
+      }
+
       func convert(id: Gender) -> String {
           switch genderId {
               case .unknown: return "不明"
@@ -388,60 +489,35 @@ class Gender: Object, Mappable {
               case .female:  return "男性"
           } 
       }
-
-      required convenience init?(map: Map) {
-         self.init()
-      }
-
-      func mapping(map: Map) {
-          name <- map["name"]
-          genderId <- map["gender"]
-      }
 }
 
 ```
 
 **（１１）データの取得と加工を、それが必要とする箇所（ViewController側など）ではなく、仲介クラスやメソッド（講座では`Service`というクラスを使った）を使って行ったほうが良い理由をわかりやすく説明してください。**  
 →[Answer]Previously in another question, it is asked that how to reduce same code in multiple viewControllers. Service Class would be so handy in that case. We can write common logics/functions in Service class so that we can use that from view controllers. <ServiceClass> n ----------- 1 <ViewControllers>  
-ServiceClassを使用して、同様のコードの記述を減らすことができます。
-```swift
-class ValidationService {
-    
-    static func validateName(name: String, min: Int, max: Int) -> Bool {
-        return name.count >= min && name.count <= max
-    }
-    
-    static func validateEmailId(emailID: String) -> Bool {
-       let emailRegEx = "[A-Z0-9a-z._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,64}"
-       let trimmedString = emailID.trimmingCharacters(in: .whitespaces)
-       let validateEmail = NSPredicate(format:"SELF MATCHES %@", emailRegEx)
-       let isValidateEmail = validateEmail.evaluate(with: trimmedString)
-       return isValidateEmail
-    }
-    
-    static func validatePassword(password: String) -> Bool {
-       let passRegEx = "^[A-Za-z\\d]{6,255}$"
-       let trimmedString = password.trimmingCharacters(in: .whitespaces)
-       let validatePassord = NSPredicate(format:"SELF MATCHES %@", passRegEx)
-       let isvalidatePass = validatePassord.evaluate(with: trimmedString)
-       return isvalidatePass
-    }
-}
-      
-class SampleViewController: UIViewController {
-      .......
-      let name : String = ""
-      ...
-      ...
-      let isValidatedName = ValidationService.validateName(name, min: 1, max: 100)  
-}
+For Example to handle rather than writing similar request code in every view controller we can make a Service class named Network and use the the methods dynamically from any view controllers
+```
+import Foundation
+import Alamofire
+import SwiftyJSON
 
-class SampleViewController2: UIViewController {
-      .......
-      let name : String = ""
-      ...
-      ...
-      let isValidatedName = ValidationService.validateName(name, min: 1, max: 100)  
+typealias CbNet<T> = (T?, AppError?) -> Void
+
+class Network {
+    static let TIMEOUT = 90 //in Seconds
+    
+    static func get<T: ApiModel>(_ url: String, headerMap: [String: Any], cb: @escaping CbNet<T>) {
+        //code for get req
+    }
+    
+    static func post<T: ApiModel>(_ url: String, headerMap: [String: Any], params: [String: Any] = [:], encoding: String = "utf8", cb: @escaping CbNet<T>) {
+        //Code for post req
+    }
+    
+    private static func request<T: ApiModel>(_ req: URLRequest, cb: @escaping CbNet<T>) {
+        //AlamoFire Request...
+        
+    }
 }
 
 ```
@@ -601,11 +677,29 @@ class ContentService {
                 DispatchQueue.main.async {
                     //TODO
                     //Answer:13
-                    if let dataArray = Mapper<Feedable>().mapArray(JSONObject: safeJson.arrayObject) {
-                        completion?(dataArray)
-                    } else {
-                        failure?(nil,nil)
+                    var dataArray = [Feedable]()
+
+                    safeJson.arrayValue.forEach { jsonObject in
+                        guard 
+                            let id = jsonObject["content_type"].int,
+                            let contentType = FeedContentType(rawValue: id) 
+                        else {
+                            return
+                        }
+                        switch contentType {
+                        case .dog:
+                            guard let dog = Mapper<Dog>().map(JSONObject: jsonObject.dictionaryObject) else {
+                                return
+                            }
+                            dataArray.append(dog)
+                        }
+                        case .cat:
+                            guard let cat = Mapper<Cat>().map(JSONObject: jsonObject.dictionaryObject) else {
+                                return
+                            }
+                            dataArray.append(cat)
                     }
+                    completion?(dataArray)
                 }
             },
             error: { statusCode in
