@@ -727,51 +727,79 @@ enum Gender: Int {
 
 **（１１）データの取得と加工を、それが必要とする箇所（ViewController側など）ではなく、仲介クラスやメソッド（講座では`Service`というクラスを使った）を使って行ったほうが良い理由をわかりやすく説明してください。**
 
-Answer: A ```service``` class is very useful when you want to use the same chunk of function or logics in several places. it centralizes the code and handle logic from one single unit. It reduces the code redundancy. For example-
+Answer: If we build a function that can create an intermediary class or method and provide the same data, we can call it easily at the required place and can make the view controller less complex.
+
+- It handles a business processes
+- It can access another service
+- It’s relatively independent of the software
+- It has only one responsibility
+
+For Example: 
+we can create two types of services: managers and regular services. Structurally they are the same, but managers have these attributes:
+
+- It is a service built around some framework - Core data
+- Generic and straightforward - Knows only to fetch, save, update and delete data, doesn’t work with specific data
+- Easy to replace - If we want to replace Core data with Realm we only need to change a manager
+- Managers are imported only by regular services and not by low-level objects such as view controllers or view models
+- Should reuse in another project - Because of these benefits we can easily reuse these tools in other projects
+
+On the other hand, regular services have the following characteristics:
+- Code is not generic - Fetching particular objects from Core data
+- They should be imported in low level objects and other regular services
+- Can’t reuse in other projects - Have specific tasks
 
 翻訳：
+中間クラスまたはメソッドを作成して同じデータを提供できる関数を作成すると、必要な場所で簡単に呼び出すことができ、ViewControllerの複雑さを軽減できます。
 
-```service``` クラスは、関数やロジックの同じチャンクを複数の場所で使用したい場合に非常に便利です。 コードと処理ロジックを 1 つのユニットから一元化します。 コードの冗長性を減らします。 例えば-
+- ビジネスプロセスを処理します
+- 別のサービスにアクセスできます
+- ソフトウェアから比較的独立しています
+- 責任は1つだけです
 
-```swift
-class OperationService {
-    
-    static let numberService = NumberService()
+例えば：
+マネージャーと通常のサービスの2種類のサービスを作成できます。構造的には同じですが、マネージャーには次の属性があります。
 
-    static func sum(a: Int, b: Int) -> Int {
-        return a + b
-    }
+- それはいくつかのフレームワークを中心に構築されたサービスです-コアデータ
+- 一般的でわかりやすい-データのフェッチ、保存、更新、削除のみを知っており、特定のデータでは機能しません
+- 簡単に置き換える-CoreデータをRealmに置き換える場合は、マネージャーを変更するだけで済みます
+- マネージャーは通常のサービスによってのみインポートされ、ビューコントローラーやビューモデルなどの低レベルのオブジェクトによってはインポートされません。
+- 別のプロジェクトで再利用する必要があります-これらの利点により、これらのツールを他のプロジェクトで簡単に再利用できます
 
-    static func isDecimal() -> Double {
-        // code ....
-    }
-}
-
-class NumberService {
-    
-    func convertToDecimal(with number: Int) -> Double {
-        // .....
-    }
-}
-
-```
-Now we can use the same ```OperationService``` in various class .
-翻訳：
-これで、さまざまなクラスで同じ「OperationService」を使用できます。
+一方、通常のサービスには次の特徴があります。
+- コードはジェネリックではありません-コアデータから特定のオブジェクトをフェッチします
+- 低レベルのオブジェクトやその他の通常のサービスにインポートする必要があります
+- 他のプロジェクトで再利用できない-特定のタスクがある
 
 ```swift
-class ViewController1: UIViewController {
 
-    //// .....
-    let isDecimal: Double = OperationService.isDecimal()
-    let convertToDecimal = OperationService.numberService.convertToDecimal(with: 10)
+class APIManager {
+    
+    // MARK: - Vars & Lets
+    private let sessionManager: SessionManager
+    private let retrier: APIManagerRetrier
+    static let networkEnviroment: NetworkEnvironment = .dev
+    
+    // MARK: - Initialization
+    init(sessionManager: SessionManager, retrier: APIManagerRetrier) {
+        self.sessionManager = sessionManager
+        self.retrier = retrier
+        self.sessionManager.retrier = self.retrier
+    }
+    
 }
 
-class ViewController2: UIViewController {
-
-    //// .....
-    let isDecimal: Double = OperationService.isDecimal()
-    let convertToDecimal = OperationService.numberService.convertToDecimal(with: 10)
+class UserNetworkServices {
+    
+    // MARK: - Vars & Lets
+    private let apiManager: APIManager
+    private let userServices: UserServices
+    
+    // MARK: - Initialization
+    init(apiManager: APIManager, userServices: UserServices) {
+        self.apiManager = apiManager
+        self.userServices = userServices
+    }
+    
 }
 ```
 **（１２）サーバAPIからJSONデータを取得して、モデルクラスの形で呼び出し元まで返す過程を、準備のための実装フローも含めて、箇条書きでできるだけ詳しく、ロジックフローで説明してください。なお、ライブラリはAlamofire, Moya, SwiftyJson, ObjectMapperを使うものとします。**
@@ -905,6 +933,41 @@ class APIRequest<T: Decodable>: URLRequestConvertible {
 }
 
 ```
+
+#### Using MOYA
+```swift
+class MoyaAPIRequest:TargetType {
+
+    var baseURL: URL { fatalError("上書き必須") }
+    var path: String { fatalError("上書き必須") }
+    var method: Moya.Method { fatalError("上書き必須") }
+    var parameters: [String: Any]? { fatalError("上書き必須") }
+
+    var headers: [String: String]? {
+        return nil
+    }
+
+    var sampleData: Data {
+        return Data()
+    }
+
+    var task: Moya.Task {
+        if let parameters = self.parameters {
+            return .requestParameters(parameters: parameters, encoding: self.parameterEncoding)
+        } else {
+            return .requestPlain
+        }
+    }
+
+    var multipartBody: [Moya.MultipartFormData]? {
+        return nil
+    }
+
+    var parameterEncoding: Moya.ParameterEncoding {
+        return URLEncoding.default
+    }
+}
+```
 Now its time to create API Client class. I will use RxSwift for reactive behaviour.
 翻訳：次に、API クライアント クラスを作成します。 リアクティブな動作には RxSwift を使用します。
 
@@ -917,6 +980,12 @@ import RxSwift
 final class APIClient {
     
     static let `default`: APIClient = .init()
+
+    private let queue = DispatchQueue(label: "com.winas.iOS.test", attributes: .concurrent)
+    private let plugins: [PluginType] = [
+            NetworkLoggerPlugin(configuration: NetworkLoggerPlugin.Configuration())
+        ]
+    private var provider = MoyaProvider<MoyaAPIRequest>(plugins: plugins)
     
     func send<T: Decodable>(_ request: APIRequest<T>) -> Single<T> {
         return self.request(request)
@@ -948,6 +1017,47 @@ final class APIClient {
             }
             return Disposables.create {
                 task.cancel()
+            }
+        }
+    }
+
+    // Using Moya
+    func moyaRequest(
+        target: MoyaAPIRequest,
+        success successCallback: @escaping (_ /*text: String?*/json: JSON?, _ allHeaderFields: [AnyHashable : Any]?) -> Void,
+        error errorCallback: @escaping (_ statusCode: Int) -> Void,
+        failure failureCallback: @escaping (Moya.MoyaError) -> Void
+        ) -> Cancellable
+    {
+        return provider.request(target, callbackQueue: self.queue) { result in
+            switch result {
+            case let .success(response):
+                let headerFields = response.response?.allHeaderFields
+                do {
+                    let res = try response.filterSuccessfulStatusAndRedirectCodes()
+                    if (res.statusCode >= 300) {
+                        successCallback(nil, headerFields)
+                    } else {
+                        let json = try JSON(response.mapJSON())
+                        successCallback(json, headerFields)
+                    }
+                }
+                catch let error {
+                    if response.statusCode == 200 {
+                        successCallback(nil, headerFields)
+                    } else {
+                        switch error as! Moya.MoyaError {
+                        case .statusCode(let response):
+                            if let statusCode = StatusCode(rawValue: response.statusCode) {
+                                errorCallback(statusCode.rawValue)
+                            } else {
+                                failureCallback(error as! MoyaError)
+                            }
+                        default: failureCallback(error as! Moya.MoyaError)
+                        }
+                    }
+                }
+            case let .failure(error): failureCallback(error)
             }
         }
     }
@@ -992,6 +1102,28 @@ class SampleRequest: APIRequest<SampleResponse> {
         self.apiToken = apiToken
     }
 }
+
+
+// Using MOYA
+
+class MoyaAPIRequestTest: MoyaAPIRequest {
+
+    override var baseURL: URL {
+        return URL(string: "http://cs267.xbit.jp/~w065038/app/winas")!
+    }
+
+    override var path: String {
+        return "/static.txt"
+    }
+
+    override var method: Moya.Method {
+        return .get
+    }
+
+    override var parameters: [String: Any]? {
+       return nil 
+    }
+
 ```
 Use this request in viewModel/Any where.
 翻訳：このリクエストを viewModel/Any where で使用します。
@@ -1013,10 +1145,28 @@ func getSampleData() -> Single<[SampleDataModel]> {
     return task
 }
 
+@discardableResult
+func getSampleDataWithMoya() {
+    let request = MoyaAPIRequestTest()
+    _ = APIClient.default.moyaRequest(
+        target: request,
+        success: { content, _ in
+            guard let safeContent = content else { return }
+              // ...
+        },
+        error: { _ in
+            // .... 
+        },
+        failure: { _ in
+            // ....
+        })
+}
+
 ```
 
 Now call your ```getSampleData()``` and subscribe the response.
 翻訳：次に、```getSampleData()``` を呼び出して、応答をサブスクライブします。
+
 ## Day5
 
 **（１３）複数の異なる型を持つデータ群を１つの配列で持ちたいとする。それらのデータをサーバAPIから取得した場合、どのように実装をすればいいのか、以下のコードのTODO箇所を埋める形でコードを書いてください。なお、ライブラリはAlamofire, Moya, SwiftyJson, ObjectMapperを使うものとします。**
@@ -1163,11 +1313,28 @@ class ContentService {
                 guard let safeJson = json else { return }
                 // run in main => UI thread
                 DispatchQueue.main.async {
-                    if let dataArray = Mapper<Feedable>().mapArray(JSONObject: safeJson.arrayObject) {
-                        completion?(dataArray)
-                    } else {
-                        failure?(nil, nil)
+                    var data = [Feedable]()
+                    safeJson.arrayValue.forEach { jsonObject in
+                        guard 
+                            let feedableId = jsonObject["content_type"].int,
+                            let feedableContent = FeedContentType(rawValue: feedableId) 
+                        else {
+                            return
+                        }
+                        switch feedableContent {
+                        case .cat:
+                            guard let cat = Mapper<Cat>().map(JSONObject: jsonObject.dictionaryObject) else {
+                                return
+                            }
+                            data.append(cat)
+                        case .dog:
+                            guard let dog = Mapper<Dog>().map(JSONObject: jsonObject.dictionaryObject) else {
+                                return
+                            }
+                            data.append(dog)
+                        }
                     }
+                    completion?(data)
                 }
             },
             error: { statusCode in
@@ -1207,6 +1374,7 @@ class SampleViewController: UIViewController {
         view.addSubview(customView)
         return customView
     }()
+
     override func viewDidLoad() {
         super.viewDidLoad()
         customView.snp.makeConstraints { make in
@@ -1221,7 +1389,22 @@ class SampleViewController: UIViewController {
 }
 
 class SampleCustomView: UIView {
+    // Generic
     var data: Animal? {
+        didSet {
+            guard let name = data.name else { return }
+            nameLabel.text = name
+        }
+    }
+    // Static
+    var data: Cat? {
+        didSet {
+            guard let name = data.name else { return }
+            nameLabel.text = name
+        }
+    }
+
+    var data: Dog? {
         didSet {
             guard let name = data.name else { return }
             nameLabel.text = name
@@ -1253,20 +1436,20 @@ class Content: Mappable {
     }
 }
 class ContentViewController: UIViewController {
-    var content: Content?
+    var content: Content? 
     // TODO : contentが設定されない場合の代替処理
+    // Answer: If the data becomes nil, then we can show a static text like ```Loading ...``` or can show an error message. 
+    // 翻訳：データがnilになった場合は、 `` `Loading ...` ``のような静的テキストを表示するか、エラーメッセージを表示することができます
     
     override func viewDidLoad() {
         super.viewDidLoad()
         // TODO
-        getContent(contentId: 1) { [weak self] data in
-            guard let self = self else { return }
-            self.content = data 
-            /// reload views ???
-            /// or save data to local ???
-        } 
-        
+        if let content == nil {
+            content.name = "Loading ..."
+        }
+
     }
+
     private func updateView() {
         guard let content = self.content else {
             return 
@@ -1287,7 +1470,7 @@ class ContentService {
         let content = Content()
         content.id = 1234
         content.name = "テストコンテンツ"
-        completion?(hospital) // *** 「hospital」？？
+        completion?(content) 
     }
 }
 ```
@@ -1377,9 +1560,12 @@ class Content {
 }
 class SampleViewController: UIViewController {
     var contents = [Content]()
+    var cachedWidth = [IndexPath : CGFloat]()
+
     override func viewDidLoad() {
         super.viewDidLoad()
     }
+
     @IBOutlet private dynamic weak var collectionView: UICollectionView! {
         didSet {
             collectionView.clipsToBounds = true
@@ -1410,8 +1596,16 @@ extension SampleCollectionViewController: UICollectionViewDelegate {
 }
 extension SampleCollectionViewController: UICollectionViewDelegateFlowLayout {
     func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, sizeForItemAt indexPath: IndexPath) -> CGSize {
-    let content = contents[indexPath.row]
-        return ContentCollectionViewCell.sizeForItem(content: content, width: collectionView.bounds.width)
+        // Look up for cached width
+        if let width = cachedWidth[indexPath.row] {
+            return width
+        } else {
+            let content = contents[indexPath.row]
+            let width = ContentCollectionViewCell.sizeForItem(content: content, width: collectionView.bounds.width)
+            cachedWidth[indexPath.row] = width
+            return cachedWidth[indexPath.row]
+        }
+            
     }
 }
 class ContentCollectionViewCell: UICollectionViewCell {
