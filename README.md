@@ -35,6 +35,12 @@ Answer:
 - 最初から違う画面サイズを考え、オートレイアウトを利用。 そのため、アプリはさまざまなデバイスで同じように見えます。
 - tableView/CollectionView を使用する場合は、スクロール性能を考慮してください。 読み込みを高速化するには、画像キャッシュ、行キャッシュなどを使用します。
 
+#### サーバサイドやフロントエンドとの違い
+The server side is responsible to provide data. The app receives those data & display in frontend(UI). So, the frontend is dependent on server side. 
+
+翻訳：
+サーバー側はデータを提供する責任があります。 アプリはそれらのデータを受信し、フロントエンド（UI）に表示します。 したがって、フロントエンドはサーバー側に依存します。
+
 **（２）ViewControllerへの過度な依存や類似/同一コードの重複を避けるため、コード設計上どのような対策をとることが望ましいか、プレゼンテーション層（View）と処理・ビジネスロジック（Controller）それぞれの観点から、実際のコード例を挙げて説明してください。**
 
 Answer:
