@@ -1,10 +1,128 @@
 
 ## Day1
 
-**（１）モバイルアプリを開発する上で、設計上留意すべき点はどこになるか、サーバサイドやフロントエンドとの違いの観点から説明してください。**
+**（１）モバイルアプリを開発する上で、設計上留意すべき点はどこになるか、サーバサイドやフロントエンドとの違いの観点から説明してください。**  
+→[ANSWER]アプリのライフサイクルのKnowledgeと全体の設計を分かるのは大事なことです.  
+Design:  
+- Decide about app architecture, eg: MVC vs MVVM, swiftui vs uikit  
 
-**（２）ViewControllerへの過度な依存や類似/同一コードの重複を避けるため、コード設計上どのような対策をとることが望ましいか、プレゼンテーション層（View）と処理・ビジネスロジック（Controller）それぞれの観点から説明してください。**
+FrontEnd:  
+- The goal to create a design that is both visually appealing and easy to navigate/intuitive. UI and UX of the app should also comply with Apple’s guidelines.  
+- While creating the view using auto-layout, consider different size of devices so that it the elements place perfectly for smaller screen(iPhone5) to bigger screen (iPhone12proMax)
+- Reduce loading time of elements (eg. rows of tableView)by considering caching, memory management and optimizing backEnd  
+- Don't use any method that is announced to be deprecated after certain time
 
+BackEnd:
+- Initially create different target for different environment, eg: DEV, STG, PROD  
+- Optimize Data receiving process from API  
+- Encrypt saved data in local storage, eg: Login Credentials, Api Keys  
+- While using other 3rd party libraries, specify version to avoid uncessary error of updated version
+- Don't use any method that is announced to be deprecated after certain time
+
+Reduce/Optimize App Size: This is also very important factor  
+- Delete unused assets.
+- Reduce Used assets size without considering quality. For example: For images it's recommended to use 8-bit PNGs, for Audios you may use lower bit rate audios.  
+- Don’t make unnecessary modifications to files while App Updates.  
+- Adopt On-Demand Resources to avoid downloading all assets at first download.  
+
+**（２）ViewControllerへの過度な依存や類似/同一コードの重複を避けるため、コード設計上どのような対策をとることが望ましいか、プレゼンテーション層（View）と処理・ビジネスロジック（Controller）それぞれの観点から、実際のコード例を挙げて説明してください。**  
+→[ANSWER]We can utilize Service/Helper/Utility for reducing the duplication of same codes.  
+[Answer]Service/Helper/Utility を利用して、類似のコードの重複を減らすことができます。
+```
+class Helper {
+      static func someTask() {
+      }    
+}
+// in controllers
+Helper.someTask()
+```  
+プレゼンテーション層（View）  
+Considering the code snippet in below, It’s getting the user input and showing using table view
+```
+class ViewController: UIViewController {
+
+  @IBOutlet weak var tableView: UITableView!
+
+  override func viewDidLoad() {
+    super.viewDidLoad()
+    self.tableView.register(UITableViewCell.self, forCellReuseIdentifier: "cell")
+  }
+}
+
+extension ViewController: UITableViewDataSource {
+
+  func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
+    return 100
+  }
+
+  func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+    guard let cell = tableView.dequeueReusableCell(withIdentifier: "cell") else { fatalError() }
+    cell.textLabel?.text = "Row \(indexPath.item + 1)"
+    return cell
+  }
+}
+
+extension ViewController: UITableViewDelegate {
+
+  func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+    print("Selected row \(indexPath.item + 1)")
+    tableView.deselectRow(at: indexPath, animated: true)
+  }
+}
+```  
+We can create an adapter named TableViewAdapter.swift and move delegate and data source code there.  
+```
+final class TableViewAdapter: NSObject, UITableViewDataSource {
+
+  let tableView: UITableView
+
+  init(tableView: UITableView) {
+    self.tableView = tableView
+    super.init()
+
+    self.tableView.register(UITableViewCell.self, forCellReuseIdentifier: "cell")
+
+    self.tableView.dataSource = self
+    self.tableView.delegate = self
+  }
+
+  func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
+    return 100
+  }
+
+  func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+    guard let cell = tableView.dequeueReusableCell(withIdentifier: "cell") else { fatalError() }
+    cell.textLabel?.text = "Row \(indexPath.item + 1)"
+    return cell
+  }
+}
+
+extension TableViewAdapter: UITableViewDelegate {
+
+  func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+    print("Selected row \(indexPath.item + 1)")
+    tableView.deselectRow(at: indexPath, animated: true)
+  }
+}
+```
+What we have doen here is -  
+1. We added a tableView reference in the adapter file.
+2. We added an initializer to get the tableView as the adapter initializes.  
+
+Now we will simply add the adapter in view controller, and the view controller will be so neat and clean.
+```
+class ViewController: UIViewController {
+
+  @IBOutlet weak var tableView: UITableView!
+
+  private var adapter: TableViewAdapter!
+
+  override func viewDidLoad() {
+    super.viewDidLoad()
+    self.adapter = TableViewAdapter(tableView: self.tableView)
+  }
+}
+```
 ## Day2
 
 **（３）以下のコードのTODO箇所を埋めて、SnapKitによるレイアウトを実現するコードを書いてください。その際、下記の条件を満たすこと。**
@@ -28,6 +146,13 @@ class SampleViewController: UIViewController {
         super.viewDidLoad()
         
         // TODO: ここでSnapKitを使ってレイアウト制約をつけてください
+        //ANSWER:2
+        sampleView.snp.makeConstraints { make in
+            make.left.equalTo(view).offset(20)
+            make.right.equalTo(view).offset(-20)
+            make.centerY.equalToSuperview()
+            make.height.equalTo(150) 
+        }
     }
 }
 ```
@@ -42,10 +167,28 @@ import UIKit
 
 class SampleView: UIView {
     @IBOutlet private dynamic weak var view: UIView!
+
+    override init() {
+        super.init(frame: frame)
+        let gestureRecognizer = UITapGestureRecognizer(target: self, action: #selector(changeImage))
+        sampleView.addGestureRecognizer(gestureRecognizer)
+    }
+    
+    @objc func changeImage() {
+        print("something")
+    }
 }
 ```
 
 **（５）あるビューやクラスを別のクラスのプロパティとして持つ場合、どんなときにlazyを使えば良いのか、またlazyを使うことでどんなメリットがあるのか、講座を通じて覚えたことや自分なりの考察を踏まえて説明してください。**
+
+```
+どんなときにlazyを使えるか？
+-> when the view is not initially needed - ビューが最初から必要ない場合
+-> when the initial value depend on other factors - 初期値が他の要因に依存する場合
+-> to reduce the memory allocation for the memory heavy application - メモリ負荷の高いアプリケーションのメモリ割り当てを減らす
+```
+
 
 ## Day3
 
@@ -62,9 +205,14 @@ class SampleData {
     var name: String = ""
 }
 
+//Answer:6
+protocol SampleCustomViewDelegate {
+    func buttonTapped(_ view: SampleCustomView)
+}
+//Answer:6
 class SampleViewController: UIViewController {
     @IBOutlet private dynamic weak var customView: SampleCustomView!
-    
+
     override func viewDidLoad() {
         super.viewDidLoad()
         let data = SampleData()
@@ -72,16 +220,31 @@ class SampleViewController: UIViewController {
         customView.data = data
     }
 }
+extension SampleViewController: SampleCustomViewDelegate {
+    func updateData(view: SampleCustomView) {
+        // button event
+    }
+}
 
 class SampleCustomView: UIView {
-    var data: SampleData?
+    var data: SampleData? {
+        didSet {
+            update()
+        }
+    }
+
     func update() {
         // TODO
+        //Answer:6
+        nameLabel.text = data.name ?? ""
     }
     @IBOutlet private dynamic weak var nameLabel: UILabel!
     @IBOutlet private dynamic weak var button: UIButton!
+    var delegate: SampleCustomViewDelegate?
     @IBAction private func buttonTouchUpInside(_ sender: UIButton) {
         // TODO
+        //Answer:6
+        delegate.buttonTapped(self)
     }
 }
 ```
@@ -105,6 +268,13 @@ class SampleViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         // TODO
+        //Answer:7
+        let imgUrl = "https://sample.com/sample.jpg"
+        let brandIcon = BrandIcon.twitter
+        imageView1.image = UIImage(named: “icon”)
+        imageView2.image = UIImage(named: “icon2.png”, in: Bundle(for: type(of:self)))
+        imageView3.image = UIImage.brandIcon(icon: brandIcon, color: brandIcon.color)
+        imageView4.kf.setImage(with: imgUrl)
     }
 }
 enum BrandIcon {
@@ -186,6 +356,13 @@ class SampleViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         // TODO
+        // Answer:8
+        let twitter = BrandIcon.twitter
+        let loginStyle = StringStyle(
+                .color(.red)
+            )
+        let text =  "<twitter>\(twitter.text)</twitter>のアカウントを使って<loginStyle>ログイン</loginStyle>する"
+
     }
 }
 extension UIFont {
@@ -264,17 +441,22 @@ extension UIImage {
 
 ## Day4
 
-**（９）下記の各データを保存または取得するとき、どのような手法を用いて要件を満たせば良いか、その理由も含めて説明してください。**
+**（９）下記の各データを保存するとき、どのような手法を用いて要件を満たせば良いか、その理由も含めて説明してください。**
 
-①　アプリのインストール後チュートリアルの閲覧が完了したかどうかのフラグ
+①　アプリのインストール後チュートリアルの閲覧が完了したかどうかのフラグ  
+ANSWER: FlagはBoolean(小さい値)なので、UserDefaultに保存します. UserDefaultから早くにAccessすることもできます
 
-②　ログインが必要なアプリで、次回起動時にログインを省略するためのAPIキー
+②　ログインが必要なアプリで、次回起動時にログインを省略するためのAPIキー  
+ANSWER: Keychainを使います。UserDefaultをじゃなくてキーチェーンの理由はキーチェーンはユーザーのデフォルトよりも安全です
 
-③　マスターデータ
+③　マスターデータ  
+ANSWER: CoreData, Because the size of the data might be big, and as CoreData is a graph diagram, if the database is huge than CoreData will allow us to establish relations between entities (one-to-one, one-to-many, etc.)
 
-④　ユーザーまたはアプリ運営者が継続的に投稿しているコンテンツ
+④　ユーザーまたはアプリ運営者が継続的に投稿しているコンテンツ  
+ANSWER: CoreData, Because the size of the data might be big, and as CoreData is a graph diagram, if the database is huge than CoreData will allow us to establish relations between entities (one-to-one, one-to-many, etc.)
 
-⑤　④のコンテンツのキャッシュ
+⑤　④のコンテンツのキャッシュ  
+ANSWER: Realm, If there is cache is not expired than it will use the cache or otherwise API will be called
 
 **（１０）以下の要件を満たすデータ群を、enumを用いて実際のコードで書いてください。**
 
@@ -290,14 +472,62 @@ extension UIImage {
 |名前 |男性 |女性 |不明 |
 
 ```swift
-// TODO : ここにコードを記述してください
+enum Gender: Int {
+      case unknown = 0
+      case male    = 1
+      case female  = 2
+      var genderId: Int
+
+      var name: String {
+        convert(genderId)
+      }
+
+      func convert(id: Gender) -> String {
+          switch genderId {
+              case .unknown: return "不明"
+              case .male:    return "女性"
+              case .female:  return "男性"
+          } 
+      }
+}
+
 ```
 
-**（１１）データの取得と加工を、それが必要とする箇所（ViewController側など）ではなく、仲介クラスやメソッド（講座では`Service`という名前をつけたクラスを作った）を使って行ったほうが良い理由をわかりやすく説明してください。**
+**（１１）データの取得と加工を、それが必要とする箇所（ViewController側など）ではなく、仲介クラスやメソッド（講座では`Service`というクラスを使った）を使って行ったほうが良い理由をわかりやすく説明してください。**  
+→[Answer]Previously in another question, it is asked that how to reduce same code in multiple viewControllers. Service Class would be so handy in that case. We can write common logics/functions in Service class so that we can use that from view controllers. <ServiceClass> n ----------- 1 <ViewControllers>  
+For Example to handle rather than writing similar request code in every view controller we can make a Service class named Network and use the the methods dynamically from any view controllers
+```
+import Foundation
+import Alamofire
+import SwiftyJSON
+
+typealias CbNet<T> = (T?, AppError?) -> Void
+
+class Network {
+    static let TIMEOUT = 90 //in Seconds
+    
+    static func get<T: ApiModel>(_ url: String, headerMap: [String: Any], cb: @escaping CbNet<T>) {
+        //code for get req
+    }
+    
+    static func post<T: ApiModel>(_ url: String, headerMap: [String: Any], params: [String: Any] = [:], encoding: String = "utf8", cb: @escaping CbNet<T>) {
+        //Code for post req
+    }
+    
+    private static func request<T: ApiModel>(_ req: URLRequest, cb: @escaping CbNet<T>) {
+        //AlamoFire Request...
+        
+    }
+}
+
+```
 
 **（１２）サーバAPIからJSONデータを取得して、モデルクラスの形で呼び出し元まで返す過程を、準備のための実装フローも含めて、箇条書きでできるだけ詳しく、ロジックフローで説明してください。なお、ライブラリはAlamofire, Moya, SwiftyJson, ObjectMapperを使うものとします。**
-> 例：　Step1: XXクラスをXXライブラリの仕様に沿うよう、XXする。  
->　　　Step2: XXデータをXXライブラリのXXメソッドを使ってXXする。
+>     Step1: Make Model following the api response - そのResponseのようにモデリを作る
+>     Step2: Request using Alamofire and get response - As using alamofire, JSONSerialization.jsonObject and do-catch is not needed - Alamofireを使ってRequestをしてResponseをもらう
+>     Step3: Parse the response using SwiftyJson - As SwiftyJson doesn't require Casting - SwiftJsonを使ってResponseをParseする
+>     Step4: After Parsing return as model - モデルにそのResponseをParseする
+
 
 ## Day5
 
@@ -445,7 +675,31 @@ class ContentService {
                 guard let safeJson = json else { return }
                 // run in main => UI thread
                 DispatchQueue.main.async {
-                    // TODO
+                    //TODO
+                    //Answer:13
+                    var dataArray = [Feedable]()
+
+                    safeJson.arrayValue.forEach { jsonObject in
+                        guard 
+                            let id = jsonObject["content_type"].int,
+                            let contentType = FeedContentType(rawValue: id) 
+                        else {
+                            return
+                        }
+                        switch contentType {
+                        case .dog:
+                            guard let dog = Mapper<Dog>().map(JSONObject: jsonObject.dictionaryObject) else {
+                                return
+                            }
+                            dataArray.append(dog)
+                        }
+                        case .cat:
+                            guard let cat = Mapper<Cat>().map(JSONObject: jsonObject.dictionaryObject) else {
+                                return
+                            }
+                            dataArray.append(cat)
+                    }
+                    completion?(dataArray)
                 }
             },
             error: { statusCode in
@@ -490,11 +744,16 @@ class SampleViewController: UIViewController {
             make.bottom.equalTo(view).offset(0)
         }
         let Dog = Dog()
-        customView.data = cat
+        customView.data = dog //error
     }
 }
 class SampleCustomView: UIView {
-    var data: ??? // TODO: 型名
+    var data: Animal {
+          didSet {
+             guard let name = data.name else {return}
+             nameLabel.text = name
+          }
+      }
     @IBOutlet private dynamic weak var nameLabel: UILabel!
 }
 ```
@@ -569,7 +828,7 @@ class SampleViewController: UIViewController {
     }
 }
 class SampleCustomView: UIView {
-    var viewController: SampleViewController?
+    var viewController: SampleViewController? // Answer:16 = Make it weak var
     @IBOutlet private dynamic weak var button: UIButton!
     @IBAction private func buttonTouchUpInside(_ sender: UIButton) {
         viewController?.onCustomViewChanged()
@@ -672,4 +931,3 @@ class ContentCollectionViewCell: UICollectionViewCell {
     @IBOutlet private dynamic weak var nameLabel: UILabel!
 }
 ```
-
