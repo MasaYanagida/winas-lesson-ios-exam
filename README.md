@@ -36,10 +36,7 @@ Answer:
 - tableView/CollectionView を使用する場合は、スクロール性能を考慮してください。 読み込みを高速化するには、画像キャッシュ、行キャッシュなどを使用します。
 
 #### サーバサイドやフロントエンドとの違い
-The server side is responsible to provide data. The app receives those data & display in frontend(UI). So, the frontend is dependent on server side. 
-
-翻訳：
-サーバー側はデータを提供する責任があります。 アプリはそれらのデータを受信し、フロントエンド（UI）に表示します。 したがって、フロントエンドはサーバー側に依存します。
+Apps need to know all the data, the flow of information, and the actions of users within their own processes. So, while passing  some data within the app, we need to be careful about scope in which data is used. On the other hand, server side can maintain own processes by using cookies, session or url parameters.So, these points should be keep in mind while designing mobile application.
 
 **（２）ViewControllerへの過度な依存や類似/同一コードの重複を避けるため、コード設計上どのような対策をとることが望ましいか、プレゼンテーション層（View）と処理・ビジネスロジック（Controller）それぞれの観点から、実際のコード例を挙げて説明してください。**
 
@@ -327,11 +324,14 @@ class SampleViewController: UIViewController {
 import UIKit
 
 class SampleView: UIView {
-    @IBOutlet private dynamic weak var view: UIView!
+    @IBOutlet private dynamic weak var view: UIView! {
+        didSet {
+            setupGesture()
+        }
+    }
 
     override init(frame: CGRect) {
         super.init(frame: frame)
-        setupGesture()
     }
     
     required init?(coder aDcoder: NSCoder) {
@@ -714,14 +714,14 @@ answer: ```swift Realm```
 enum Gender: Int {
     case unknown = 0, male = 1, female = 2
     var name: String {
-        selectGender(genderId: self)
+        selectGender()
     }
     
     func convert() -> String {
-        selectGender(genderId: self, isToggle: true)
+        selectGender(isToggle: true)
     }
     
-    func selectGender(genderId: Gender, isToggle: Bool = false) -> String {
+    func selectGender(isToggle: Bool = false) -> String {
         switch self {
             case .unknown: return "不明"
             case .male: return (isToggle ? "女性" : "男性")
@@ -1442,18 +1442,28 @@ class Content: Mappable {
     }
 }
 class ContentViewController: UIViewController {
-    var content: Content? 
+    var content: Content? {
+        didSet {
+            updateView()
+        }
+    }
     // TODO : contentが設定されない場合の代替処理
-    // Answer: If the data becomes nil, then we can show a static text like ```Loading ...``` or can show an error message. 
-    // 翻訳：データがnilになった場合は、 `` `Loading ...` ``のような静的テキストを表示するか、エラーメッセージを表示することができます
-    
+    var contentId: Int = 0 {
+        didSet {
+            ContentService().getContent(
+                contentId: contentId,
+                completion: { [weak self] content in
+                    self?.content = content
+                },
+                failure: nil 
+            )
+        }
+    }
+
     override func viewDidLoad() {
         super.viewDidLoad()
         // TODO
-        if let content == nil {
-            content.name = "Loading ..."
-        }
-
+        updateView()
     }
 
     private func updateView() {
@@ -1545,7 +1555,7 @@ class SampleViewController: UIViewController {
     }
 
     // Answer: 
-    denit() {
+    denit {
         NotificationCenter.default.removeObserver(self, name: UIResponder.keyboardWillShowNotification, object: nil)
     }
 
@@ -1566,7 +1576,6 @@ class Content {
 }
 class SampleViewController: UIViewController {
     var contents = [Content]()
-    var cachedWidth = [IndexPath : CGFloat]()
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -1602,27 +1611,34 @@ extension SampleCollectionViewController: UICollectionViewDelegate {
 }
 extension SampleCollectionViewController: UICollectionViewDelegateFlowLayout {
     func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, sizeForItemAt indexPath: IndexPath) -> CGSize {
-        // Look up for cached width
-        if let width = cachedWidth[indexPath.row] {
-            return width
-        } else {
-            let content = contents[indexPath.row]
-            let width = ContentCollectionViewCell.sizeForItem(content: content, width: collectionView.bounds.width)
-            cachedWidth[indexPath.row] = width
-            return cachedWidth[indexPath.row]
-        }
-            
+    let content = contents[indexPath.row]
+        return ContentCollectionViewCell.sizeForItem(content: content, width: collectionView.bounds.width)
     }
 }
 class ContentCollectionViewCell: UICollectionViewCell {
 
+    struct Static {
+        static let cell = ContentCollectionViewCell.fromNib()
+        static let cache = NSCache<NSString, NSValue>()
+    }
+
     class func sizeForItem(content: Content, width: CGFloat) -> CGSize {
-        if (content.name == "") {
-            return .zero
+        let cacheKey: NSString = "ContentCollectionViewCell:\(content.id)" as NSString
+        if let size = Static.cache.object(forKey: cacheKey) as? CGSize {
+            return size 
         }
-        let boundingHeight = content.name.width(withConstrainedWidth: width, font: UIFont.systemFont(ofSize: 14.0))
-        let boundingWidth = content.name.width(withConstrainedHeight: boundingHeight, font: UIFont.systemFont(ofSize: 14.0))
-        return CGSize(width: boundingWidth + 40.0, height: boundingHeight)
+
+        let cell = Static.cell
+        cell.frame.size = CGSize(width: width, height: 0)
+        cell.setNeedLayout()
+        var size = cell.systemLayoutSizeFitting(
+            CGSize(width: width, height: 0),
+            withHorizontalFittingPriority: .required,
+            verticalFittingPriority: .defaultLow
+        )
+        size.width = width 
+        Static.cache.setObject(NSValue(cgSize: size), forKey: cacheKey)
+        return size
     }
     var content: Content?
     private func updateView(_ content: Content) {
@@ -1630,22 +1646,6 @@ class ContentCollectionViewCell: UICollectionViewCell {
         layoutIfNeeded()
     }
     @IBOutlet private dynamic weak var nameLabel: UILabel!
-}
-
-extension String {
-    func height(withConstrainedWidth width: CGFloat, font: UIFont) -> CGFloat {
-		let constraintRect = CGSize(width: width, height: .greatestFiniteMagnitude)
-		let boundingBox = self.boundingRect(with: constraintRect, options: .usesLineFragmentOrigin, attributes: [NSAttributedString.Key.font: font], context: nil)
-		return ceil(boundingBox.height)
-	}
-
-    func width(withConstrainedHeight height: CGFloat, font: UIFont) -> CGFloat {
-		let constraintRect = CGSize(width: .greatestFiniteMagnitude, height: height)
-		let boundingBox = self.boundingRect(with: constraintRect, options: .usesLineFragmentOrigin, attributes: [NSAttributedString.Key.font: font], context: nil)
-		
-		return ceil(boundingBox.width)
-	}
-	
 }
 
 ```
