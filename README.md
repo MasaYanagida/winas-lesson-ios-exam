@@ -3,7 +3,286 @@
 
 **（１）モバイルアプリを開発する上で、設計上留意すべき点はどこになるか、サーバサイドやフロントエンドとの違いの観点から説明してください。**
 
-**（２）ViewControllerへの過度な依存や類似/同一コードの重複を避けるため、コード設計上どのような対策をとることが望ましいか、プレゼンテーション層（View）と処理・ビジネスロジック（Controller）それぞれの観点から説明してください。**
+Answer: Memory Management (ARC), アプリのLifeCycle
+
+Answer: 
+#### Security
+- User information seccurity must be considered. 
+- Securing API Key, user email, password using encryption.
+#### Permission
+- Make sure that the app asks for permission to use users bluetooth, mic, photo gallary, camera etc. Double check the plist file to make sure that permission text are enlisted.
+#### Be careful when using 3rd Party Library 
+- While using any third party library, use the most reliable library. 
+#### Server Side
+- Create different ```target``` from the beginning. 
+- Server side is responsible for providing data. If you receives so many data then load them in a batch. But make sure, this doesn't have any effect of use experience.
+#### Front End
+- Consider different screen size from the beginning & use auto layout. So, the app looks same on various devices.
+- If you use tableView/CollectionView, consider the scroll performance. Use image cache, row cache etc for faster loading.
+
+翻訳：
+#### セキュリティ
+- 利用者情報の機密性を考慮しなければならない。
+- 暗号化を使用して API キー、ユーザーのメール、パスワードを保護します。
+#### 許可
+- アプリがユーザーの Bluetooth、マイク、フォト ギャラリー、カメラなどの使用許可を求めていることを確認します。plist ファイルを再確認して、許可テキストが含まれていることを確認します。
+#### サードパーティのライブラリを使用する場合は注意してください
+- サードパーティのライブラリを使用する場合は、最も信頼できるライブラリを使用してください。
+#### サーバ側
+- 最初から別の ```target``` を作成します。
+- サーバー側はデータを提供する責任があります。 大量のデータを受信する場合は、それらをバッチでロードします。 ただし、これは使用経験に影響を与えないことを確認してください。
+#### フロントエンド
+- 最初から違う画面サイズを考え、オートレイアウトを利用。 そのため、アプリはさまざまなデバイスで同じように見えます。
+- tableView/CollectionView を使用する場合は、スクロール性能を考慮してください。 読み込みを高速化するには、画像キャッシュ、行キャッシュなどを使用します。
+
+#### サーバサイドやフロントエンドとの違い
+Apps need to know all the data, the flow of information, and the actions of users within their own processes. So, while passing  some data within the app, we need to be careful about scope in which data is used. On the other hand, server side can maintain own processes by using cookies, session or url parameters.So, these points should be keep in mind while designing mobile application.
+
+**（２）ViewControllerへの過度な依存や類似/同一コードの重複を避けるため、コード設計上どのような対策をとることが望ましいか、プレゼンテーション層（View）と処理・ビジネスロジック（Controller）それぞれの観点から、実際のコード例を挙げて説明してください。**
+
+Answer:
+
+First of all consider the following code snippets.
+翻訳：まず、次のコード スニペットを検討してください。
+
+```swift
+// ViewController.swift
+import UIKit
+
+class ViewController: UITableViewController {
+    
+    var projects = [Project]()
+    
+    override func viewDidLoad() {
+        super.viewDidLoad()
+
+        title = "Winas"
+        navigationController?.navigationBar.prefersLargeTitles = true
+
+        guard let url = Bundle.main.url(forResource: "projects", withExtension: "json") else {
+            fatalError("Failed to locate projects.json in app bundle.")
+        }
+
+        guard let data = try? Data(contentsOf: url) else {
+            fatalError("Failed to load projects.json in app bundle.")
+        }
+
+        let decoder = JSONDecoder()
+
+        guard let loadedProjects = try? decoder.decode([Project].self, from: data) else {
+            fatalError("Failed to decode projects.json from app bundle.")
+        }
+
+        projects = loadedProjects
+    }
+
+    override func numberOfSections(in tableView: UITableView) -> Int {
+        return 1
+    }
+
+    override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
+        return projects.count
+    }
+
+    override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+        let cell = tableView.dequeueReusableCell(withIdentifier: "Cell", for: indexPath)
+        let project = projects[indexPath.row]
+        cell.textLabel?.attributedText = makeAttributedString(title: project.title, subtitle: project.subtitle)
+        return cell
+    }
+
+    override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+        let project = projects[indexPath.row]
+
+        guard let detailVC = storyboard?.instantiateViewController(withIdentifier: "DetailViewController") as? DetailViewController else {
+            return
+        }
+
+        detailVC.project = project
+        navigationController?.pushViewController(detailVC, animated: true)
+    }
+
+    func makeAttributedString(title: String, subtitle: String) -> NSAttributedString {
+        let titleAttributes = [NSAttributedString.Key.font: UIFont.preferredFont(forTextStyle: .headline), NSAttributedString.Key.foregroundColor: UIColor.purple]
+        let subtitleAttributes = [NSAttributedString.Key.font: UIFont.preferredFont(forTextStyle: .subheadline)]
+
+        let titleString = NSMutableAttributedString(string: "\(title)\n", attributes: titleAttributes)
+        let subtitleString = NSAttributedString(string: subtitle, attributes: subtitleAttributes)
+
+        titleString.append(subtitleString)
+
+        return titleString
+    }
+}
+
+// Project.swift
+struct Project: Codable {
+    var number: Int
+    var title: String
+    var subtitle: String
+    var topics: String
+}
+```
+## Centralizing code
+This is a massive `viewController`. Let’s start by looking for common functionality that we can move from view controllers.What you’ll see is that viewDidLoad() has a big chunk of code for loading JSON from the bundle, which doesn’t need to be there – this is the kind of thing you might want to do in lots of places.
+
+We can create an `extension` for proccessing & loading JSON from the bundle. Let\`s create a file called `Bundle+JSON.swift`. Now remove the following content from `viewDidLoad()` & insert the into the extension.
+
+翻訳：
+## コードの集中化
+これは巨大な「viewController」です。 ビューコントローラーから移動できる一般的な機能を探すことから始めましょう。表示されるのは、viewDidLoad() にはバンドルから JSON をロードするためのコードの大きなチャンクがあり、そこにある必要はありません。 いろいろなところでやりたいこと。
+
+バンドルから JSON を処理およびロードするための「拡張機能」を作成できます。 「Bundle+JSON.swift」というファイルを作成しましょう。 次に、「viewDidLoad()」から次のコンテンツを削除し、拡張機能に挿入します。
+
+```swift
+extension Bundle {
+
+    func JSONDecode<T: Decodable>(for fileName: String) -> T {
+        
+        guard let url = Bundle.main.url(forResource: fileName, withExtension: nil) else {
+            fatalError("Failed to locat \(fileName) in app bundle.")
+        }
+
+        guard let data = try? Data(contentsOf: url) else {
+            fatalError("Failed to locat \(fileName) in app bundle.")
+        }
+
+        let decoder = JSONDecoder()
+
+        guard let loaded = try? decoder.decode(T.self, from: data) else {
+            fatalError("Failed to locat \(fileName) in app bundle.")
+        }
+
+        return loaded
+    }
+}
+```
+Back in view controller, delete this line from viewDidLoad():
+翻訳：ビュー コントローラーに戻り、viewDidLoad() から次の行を削除します。
+
+```swift projects = loadedProjects```
+Instead, we can call our new decode() method straight from the property definition:
+
+翻訳：代わりに、プロパティ定義から直接新しい decode() メソッドを呼び出すことができます。
+
+```swift let projects: [Project] = Bundle.main.decode(from: "projects.json")```
+
+Not only has that removed a lot of code from our view controller, but it also turned projects from a variable to a constant – a small but important win.
+
+翻訳：これにより、View Controller から多くのコードが削除されただけでなく、プロジェクトが変数から定数に変わりました。これは、小さいながらも重要な勝利です。
+
+## Model to model
+viewController.swift contains some other shared functionality: the ```makeAttributedString()``` method. This is designed to take the title and subtitle of a project, and return them as an attributed string that can be used in table view cells.
+
+Now cut the ```makeAttributedString()``` method to your clipboard, then paste it into the Project model. I don’t think this feels quite right as a method, so I would convert it to a computed property like this:
+
+翻訳：
+viewController.swift には、他のいくつかの共有機能が含まれています。```makeAttributedString()`` メソッドです。 これは、プロジェクトのタイトルとサブタイトルを取得し、それらをテーブル ビュー セルで使用できる属性付き文字列として返すように設計されています。
+
+次に、```makeAttributedString()`` メソッドをクリップボードに切り取り、Project モデルに貼り付けます。 これはメソッドとしてはあまり適切ではないと思うので、次のように計算されたプロパティに変換します。
+
+```swift var attributedTitle: NSAttributedString { ```
+
+Now change the following line .　
+翻訳：次に、次の行を変更します。
+
+```swift cell.textLabel?.attributedText = makeAttributedString(title: project.title, subtitle: project.subtitle)```
+To
+```swift cell.textLabel?.attributedText = project.attributedTitle```
+
+### Carving off data sources
+At this point, ViewController.swift is responsible for only two major things: acting as a table view data source, and acting as a table view delegate. Of the two, the data source is always an easier target for refactoring because it can be isolated neatly.
+
+So, we’re going to take all the data source code out of ViewController.swift, and instead put it into a dedicated class. This allows us to re-use that data source class elsewhere if needed, or to switch it out for a different data source type as appropriate.
+
+Go to the File menu and choose New > File. Create a new Cocoa Touch Class subclassing NSObject, and name it it “ProjectDataSource”. We’re going to paste a good chunk of code into here in just a moment, but first we need to do two things:
+
+- Add import UIKit to the top of the file, if it isn’t there already.
+- Make this new class conform to UITableViewDataSource.
+
+It should look like this:
+
+翻訳：
+この時点で、ViewController.swift は、テーブル ビュー データ ソースとして機能することと、テーブル ビュー デリゲートとして機能することの 2 つの主要な処理のみを担当します。 この 2 つのうち、データ ソースはきれいに分離できるため、常にリファクタリングの対象として簡単です。
+
+そのため、ViewController.swift からすべてのデータ ソース コードを取り出し、代わりに専用のクラスに入れます。 これにより、必要に応じてそのデータ ソース クラスを別の場所で再利用したり、必要に応じて別のデータ ソース タイプに切り替えることができます。
+
+[ファイル] メニューに移動し、[新規] > [ファイル] を選択します。 NSObject をサブクラス化する新しい Cocoa Touch クラスを作成し、「ProjectDataSource」という名前を付けます。 すぐに大量のコードをここに貼り付けますが、最初に 2 つのことを行う必要があります。
+
+- ファイルの先頭にインポート UIKit を追加します (まだ存在しない場合)。
+- この新しいクラスを UITableViewDataSource に準拠させる。
+
+次のようになります。
+
+```swift
+import UIKit
+
+class ProjectDataSource: NSObject, UITableViewDataSource {
+
+}
+```
+Now for the important part: we need to move numberOfSections, numberOfRows, and cellForRowAt into there, from ViewController.swift. You can literally just cut them to your clipboard then paste them inside ProjectDataSource, but you will need to remove the three override keywords.
+
+Now move the ```projects``` property from ViewController to ProjectDataSource. That will get rid of most, but not all, of the errors.
+
+Create this new property in ViewController.swift:
+
+翻訳：
+
+次に重要な部分です。ViewController.swift から、numberOfSections、numberOfRows、および cellForRowAt をそこに移動する必要があります。 文字通りクリップボードに切り取って ProjectDataSource 内に貼り付けることができますが、3 つのオーバーライド キーワードを削除する必要があります。
+
+次に、```projects``` プロパティを ViewController から ProjectDataSource に移動します。 これにより、ほとんどのエラーが解消されますが、すべてではありません。
+
+ViewController.swift にこの新しいプロパティを作成します。
+
+
+```swift
+let dataSource = ProjectDataSource()
+```
+Now add this to its ```viewDidLoad()``` method:
+
+```swift
+tableView.dataSource = dataSource
+```
+
+Add this to ProjectDataSource:
+```swift
+func project(at index: Int) -> Project {
+    return projects[index]
+}
+```
+
+Now back in the ```didSelectRowAt``` method we can write this:
+翻訳：```didSelectRowAt``` メソッドに戻って、次のように記述できます。
+
+```swift
+let project = dataSource.project(at: indexPath.row)
+```
+
+Now your viewController looks very neat & clean. You can also use viewModel for data proccessing & update . Also you can use coordinator pattern to reduce the responsibility of viewController.
+
+翻訳：
+これで、あなたの viewController はとてもきれいできれいに見えます。 データの処理と更新に viewModel を使用することもできます。 また、コーディネーター パターンを使用して、viewController の責任を軽減することもできます。
+
+### View Layer
+The view layer has two important tasks:
+
+- presenting data to the user
+- and handling user interaction
+
+Views are dumb objects. They only know how to present data to the user. They don't know or understand what they are presenting.
+
+翻訳：
+
+### ビューレイヤー
+ビューレイヤーには2つの重要なタスクがあります。
+
+- ユーザーにデータを提示する
+- そしてユーザーインタラクションの処理
+
+ビューはダム オブジェクトです。 彼らはユーザーにデータを提示する方法しか知りません。 彼らは彼らが何を提示しているのかを知らないか理解していません
+
+To avoid excessive dependence on the view controller and duplication of similar/same code, we can take the advantage of Service /Manager/Helper.
 
 ## Day2
 
@@ -27,7 +306,13 @@ class SampleViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         
-        // TODO: ここでSnapKitを使ってレイアウト制約をつけてください
+        // Answer: ③
+        sampleView.snp.makeConstraints { make in
+            make.leading.equalToSuperview().offset(20)
+            make.trailing.equalToSuperview().offset(-20)
+            make.centerY.equalToSuperview()
+            make.height.equalTo(150)
+        }
     }
 }
 ```
@@ -41,11 +326,51 @@ class SampleViewController: UIViewController {
 import UIKit
 
 class SampleView: UIView {
-    @IBOutlet private dynamic weak var view: UIView!
+    @IBOutlet private dynamic weak var view: UIView! {
+        didSet {
+            setupGesture()
+        }
+    }
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+    }
+    
+    required init?(coder aDcoder: NSCoder) {
+        super.init(coder: aDcoder)
+    }
+    
+    func setupGesture() {
+        let gestureRecognizer: UITapGestureRecognizer = UITapGestureRecognizer(target: self, action: #selector(didTapOnView))
+        view.addGestureRecognizer(gestureRecognizer)
+    }
+    
+    @objc private func didTapOnView() {
+        print("Tap")
+    }
 }
+
+
 ```
 
 **（５）あるビューやクラスを別のクラスのプロパティとして持つ場合、どんなときにlazyを使えば良いのか、またlazyを使うことでどんなメリットがあるのか、講座を通じて覚えたことや自分なりの考察を踏まえて説明してください。**
+
+Answer: Lazy properties allow you to create certain parts of a Swift type when needed, rather than doing it as part of its initialization process. This can be useful in order to avoid optionals or to improve performance when certain properties might be expensive to create. It can also help with keeping initializers more clean, since you can defer some of the setup of your types until later in their lifecycle.
+
+There are a few advantages in having a lazy property instead of a stored property.
+- The closure associated to the lazy property is executed only if you read that property. So if for some reason that property is not used (maybe because of some decision of the user) you avoid unnecessary allocation and computation.
+- You can populate a lazy property with the value of a stored property.
+- You can use ```self``` inside the closure of a lazy property
+
+翻訳：
+
+遅延プロパティを使用すると、初期化プロセスの一部として実行するのではなく、必要に応じて Swift 型の特定の部分を作成できます。 これは、オプションを回避したり、特定のプロパティの作成にコストがかかる可能性がある場合にパフォーマンスを向上させるために役立ちます。 また、ライフサイクルの後半まで型のセットアップの一部を延期できるため、初期化子をよりクリーンに保つのにも役立ちます。
+
+格納されたプロパティの代わりに遅延プロパティを使用することには、いくつかの利点があります。
+- 遅延プロパティに関連付けられたクロージャは、そのプロパティを読み取った場合にのみ実行されます。 したがって、何らかの理由でそのプロパティが使用されない場合 (おそらくユーザーの何らかの決定のため)、不必要な割り当てと計算を避けることができます。
+- 遅延プロパティに保存済みプロパティの値を設定できます。
+- 遅延プロパティのクロージャ内で ```self``` を使用できます
+
 
 ## Day3
 
@@ -73,15 +398,39 @@ class SampleViewController: UIViewController {
     }
 }
 
+extension SampleViewController: SampleCustomViewDelegate {
+    func didTapOnButton(_ view: SampleCustomView) {
+        // button pressed
+    }
+}
+
+protocol SampleCustomViewDelegate {
+    func didTapOnButton(_ view: SampleCustomView)
+}
+
 class SampleCustomView: UIView {
-    var data: SampleData?
+
+    var data: SampleData? {
+        didSet {
+            update()
+        }
+    }
+    
+    weak var delegate: SampleCustomViewDelegate?
+    
     func update() {
         // TODO
+        // answer: 6
+        nameLabel.text = data.name
     }
+    
     @IBOutlet private dynamic weak var nameLabel: UILabel!
     @IBOutlet private dynamic weak var button: UIButton!
+    
     @IBAction private func buttonTouchUpInside(_ sender: UIButton) {
         // TODO
+        Answer: 6
+        delegate?.didTapOnButton(self)
     }
 }
 ```
@@ -105,6 +454,14 @@ class SampleViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         // TODO
+        // answer: 7
+        let brandIcon = BrandIcon.twitter
+        let imageURL = "https://sample.com/sample.jpg"
+        imageView1.image = UIImage(named: "icon")
+        imageView2.image = UIImage(named: "icon2.png", in: Bundle(for: type(of:self)), compatibleWith: nil)
+        imageView3.image = UIImage.brandIcon(icon: brandIcon, color: brandIcon.color, fontSize: 128)
+        imageView4.setImage(with: imageURL)
+        
     }
 }
 enum BrandIcon {
@@ -167,6 +524,16 @@ extension UIImage {
         }
         return nil
     }
+    
+    func setImage(with urlString: String) {
+        guard let url = URL.init(string: urlString) else {
+            return
+        }
+        let resource = ImageResource(downloadURL: url, cacheKey: urlString)
+        var kf = self.kf
+        kf.indicatorType = .activity
+        self.kf.setImage(with: resource)
+    }
 }
 ```
 
@@ -186,8 +553,27 @@ class SampleViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         // TODO
+        // answer
+        let brand = BrandIcon.twitter
+        let text =  "<brand>\(brand.text)</brand>のアカウントを使って<login>ログイン</login>する"
+        let attributedString: NSAttributedString = text.styled(with: StringStyle(
+            .font(UIFont.default(20)),
+            .color(.black),
+            .lineSpacing(6),
+            .xmlRules([
+                .style("login", StringStyle(
+                    .color(.red)
+                )),
+                .style("brand", StringStyle(
+                    .font(UIFont.faBrand(20)),
+                    .color(brand.color)
+                ))
+            ])
+        ))
+        textLabel.attributedText = attributedString
     }
 }
+
 extension UIFont {
     class func `default`(_ ofSize: CGFloat) -> UIFont {
         return UIFont(name: "HiraginoSans-W3", size: ofSize)!
@@ -264,17 +650,71 @@ extension UIImage {
 
 ## Day4
 
-**（９）下記の各データを保存または取得するとき、どのような手法を用いて要件を満たせば良いか、その理由も含めて説明してください。**
+**（９）下記の各データを保存するとき、どのような手法を用いて要件を満たせば良いか、その理由も含めて説明してください。**
 
 ①　アプリのインストール後チュートリアルの閲覧が完了したかどうかのフラグ
 
+Answer: ```swift UserDefaults```
+This is just a flag. So, we don\`t need any external or heavy DB in this case. We can simply use the standard userDefaults. 
+翻訳：これはただのフラグです。 したがって、この場合、外部または重い DB は必要ありません。 標準の userDefaults を使用するだけです。
+
 ②　ログインが必要なアプリで、次回起動時にログインを省略するためのAPIキー
 
+Answer: ```swift UserDefaults or KeyChain```
+
+*** APIキーはログイン情報なので、encryptして保存した方がいいと思います。あとは、UserDefaultsはKeyChainほうど安全ではありません。この場合、Keychainは適切なです。
 ③　マスターデータ
+
+Answer: ```swift CoreData or Realm``` . 
+
+The ammount of master data might be large. So, we can use core data or Realm. If the data is really large, the its wise to use Realm. Because Realm uses its own engine, simple and fast. Thanks to its zero-copy design, Realm is much faster than ORM, and often faster than SQLite either. Its also cross-platform. So you can use the same DB in both iOS and Android or others. 
+
+翻訳：
+マスターデータの量が多い可能性があります。 したがって、コアデータまたはRealmを使用できます。 データが非常に大きい場合は、Realm を使用するのが賢明です。 Realm は独自のエンジンを使用しているため、シンプルで高速です。 ゼロコピー設計のおかげで、Realm は ORM よりもはるかに高速であり、多くの場合 SQLite よりも高速です。 また、クロスプラットフォームです。 そのため、iOS と Android またはその他の両方で同じ DB を使用できます。
 
 ④　ユーザーまたはアプリ運営者が継続的に投稿しているコンテンツ
 
+answer: ```swift Realm``` 
+
 ⑤　④のコンテンツのキャッシュ
+
+answer: CoreData or some other database to save the data. When the view controller appears, populate the view with data from the database. Register for changes to the database (i.e. NSFetchedResultsController for CD) and then make the network requests for new data. When the data returns, serialize the response into core data, realm, etc objects and save to database. 
+
+```swift
+private func loadFromCache() {
+        do {
+            // get data from DB
+        } catch let error {
+            // error ....
+        }
+    }
+}
+
+private func loadFromServer() {
+    Service.content.getList(
+        completion: { [weak self] items in
+            guard let `self` = self else { return }
+            do {
+                // save the new data to db
+            } catch let error {
+                // error ....
+            }
+        },
+        failure: { _, _ in
+            // error ....
+        })
+    }
+
+#in viewDidLoad()
+
+override func viewDidLoad() {
+    super.viewDidLoad()
+    loadFromCache()
+    DispatchQueue.main.asyncAfter(deadline: .now() + 5, execute: { [weak self] in
+        self?.loadFromServer()
+    })
+}
+```
 
 **（１０）以下の要件を満たすデータ群を、enumを用いて実際のコードで書いてください。**
 
@@ -290,14 +730,489 @@ extension UIImage {
 |名前 |男性 |女性 |不明 |
 
 ```swift
-// TODO : ここにコードを記述してください
+enum Gender: Int {
+    case unknown = 0, male = 1, female = 2
+    var name: String {
+        selectGender()
+    }
+    
+    func convert() -> String {
+        selectGender(isToggle: true)
+    }
+    
+    func selectGender(isToggle: Bool = false) -> String {
+        switch self {
+            case .unknown: return "不明"
+            case .male: return (isToggle ? "女性" : "男性")
+            case .female: return (isToggle ? "男性" : "女性")
+        }
+    }
+}
 ```
 
-**（１１）データの取得と加工を、それが必要とする箇所（ViewController側など）ではなく、仲介クラスやメソッド（講座では`Service`という名前をつけたクラスを作った）を使って行ったほうが良い理由をわかりやすく説明してください。**
+**（１１）データの取得と加工を、それが必要とする箇所（ViewController側など）ではなく、仲介クラスやメソッド（講座では`Service`というクラスを使った）を使って行ったほうが良い理由をわかりやすく説明してください。**
 
+Answer: If we build a function that can create an intermediary class or method and provide the same data, we can call it easily at the required place and can make the view controller less complex.
+
+- It handles a business processes
+- It can access another service
+- It’s relatively independent of the software
+- It has only one responsibility
+
+For Example: 
+we can create two types of services: managers and regular services. Structurally they are the same, but managers have these attributes:
+
+- It is a service built around some framework - Core data
+- Generic and straightforward - Knows only to fetch, save, update and delete data, doesn’t work with specific data
+- Easy to replace - If we want to replace Core data with Realm we only need to change a manager
+- Managers are imported only by regular services and not by low-level objects such as view controllers or view models
+- Should reuse in another project - Because of these benefits we can easily reuse these tools in other projects
+
+On the other hand, regular services have the following characteristics:
+- Code is not generic - Fetching particular objects from Core data
+- They should be imported in low level objects and other regular services
+- Can’t reuse in other projects - Have specific tasks
+
+翻訳：
+中間クラスまたはメソッドを作成して同じデータを提供できる関数を作成すると、必要な場所で簡単に呼び出すことができ、ViewControllerの複雑さを軽減できます。
+
+- ビジネスプロセスを処理します
+- 別のサービスにアクセスできます
+- ソフトウェアから比較的独立しています
+- 責任は1つだけです
+
+例えば：
+マネージャーと通常のサービスの2種類のサービスを作成できます。構造的には同じですが、マネージャーには次の属性があります。
+
+- それはいくつかのフレームワークを中心に構築されたサービスです-コアデータ
+- 一般的でわかりやすい-データのフェッチ、保存、更新、削除のみを知っており、特定のデータでは機能しません
+- 簡単に置き換える-CoreデータをRealmに置き換える場合は、マネージャーを変更するだけで済みます
+- マネージャーは通常のサービスによってのみインポートされ、ビューコントローラーやビューモデルなどの低レベルのオブジェクトによってはインポートされません。
+- 別のプロジェクトで再利用する必要があります-これらの利点により、これらのツールを他のプロジェクトで簡単に再利用できます
+
+一方、通常のサービスには次の特徴があります。
+- コードはジェネリックではありません-コアデータから特定のオブジェクトをフェッチします
+- 低レベルのオブジェクトやその他の通常のサービスにインポートする必要があります
+- 他のプロジェクトで再利用できない-特定のタスクがある
+
+```swift
+class ContentService {
+    
+    func getSingle(
+        completion: ((_ data: Content) -> Void)? = { _ in },
+        failure: ((_ error: NSError?, _ statusCode: Int?) -> Void)? = { _, _ in }
+        )
+    {
+        
+    }
+    
+    func getList(
+        completion: ((_ dataArray: [Content]) -> Void)? = { _ in },
+        failure: ((_ error: NSError?, _ statusCode: Int?) -> Void)? = { _, _ in }
+        )
+    {
+        _ = SampleNetwork.request(
+            target: .getList,
+            success: { json, _ in
+                guard let safeJson = json else { return }
+                // run in main => UI thread
+                DispatchQueue.main.async {
+                    if let dataArray = Mapper<Content>().mapArray(JSONObject: safeJson.arrayObject) {
+                        completion?(dataArray)
+                    } else {
+                        failure?(nil, nil)
+                    }
+                }
+            },
+            error: { statusCode in
+                failure?(nil, statusCode)
+            },
+            failure: { error in
+                failure?(nil, nil)
+            }
+        )
+    }
+}
+
+class Service {
+    static let content = ContentService()
+}
+
+#using 
+private func getData() {
+    Service.content.getList(
+        completion: { 
+            // ....
+        },
+        failure: { _, _ in
+            // ..... 
+        })
+}
+```
 **（１２）サーバAPIからJSONデータを取得して、モデルクラスの形で呼び出し元まで返す過程を、準備のための実装フローも含めて、箇条書きでできるだけ詳しく、ロジックフローで説明してください。なお、ライブラリはAlamofire, Moya, SwiftyJson, ObjectMapperを使うものとします。**
 > 例：　Step1: XXクラスをXXライブラリの仕様に沿うよう、XXする。  
 >　　　Step2: XXデータをXXライブラリのXXメソッドを使ってXXする。
+
+Answer: 
+
+#### Step: 1
+According to the JSON response , create the model class. For example, consider the following JSON response.
+翻訳：
+JSONレスポンスに従って、モデルクラスを作成します。 たとえば、次の JSON 応答について考えてみましょう。
+
+```json
+{
+    "data": [
+        {
+            "title": "Title", 
+            "description": "Description", 
+        },
+    ], 
+    "result": true
+}
+```
+
+```swift
+
+struct SampleResponse: Decodable {
+    var data: [SampleDataModel]?
+    var result: Bool?
+
+    enum CodingKeys: String, CodingKey { 
+        case data = "data"
+        case result = "result"
+    }
+
+}
+
+struct SampleDataModel: Decodable {
+
+    var title: String?
+    var description: String?
+
+    enum CodingKeys: String, CodingKey { 
+        case title = "title"
+        case description = "description"
+    }
+}
+```
+
+#### Step: 2
+Now will create a Network layer using Alamofire. 
+
+First define the possible errors case using ```enum```
+
+翻訳：
+次に、Alamofire を使用してネットワーク レイヤーを作成します。
+
+まず、```enum``` を使用して、起こりうるエラーのケースを定義します。
+
+```swift
+// HTTPError.swift
+
+enum HTTPError: String, Error {
+    case unAuthorized  // Status code 401
+    case forbidden // Status code 403
+    case notFound  // Status code 404
+    case conflict  // Status code 409
+    case internalServerError  // Status code 500
+    
+    static func getErrorMessage(_ error: HTTPError) -> String {
+        switch error {
+            case unAuthorized:
+                return "Error Found : You must be Authenticated"
+            case forbidden:
+                return "Error Found : Forbidden"
+            case notFound:
+                return "Error Found : URL not found"
+            case conflict:
+                return "Error Found : Conflict occurs"
+            case internalServerError:
+                return "Error Found : Internal Server Error"
+        }
+    }
+}
+```
+Now we will prepare our Request Class.
+
+翻訳：
+次に、リクエスト クラスを準備します。
+
+```swift
+
+// APIRequest.swift
+
+import Alamofire
+
+class APIRequest<T: Decodable>: URLRequestConvertible {
+    
+    var path: String { fatalError("上書き必須") }
+    var method: HTTPMethod { fatalError("上書き必須") }
+    var parameters: Parameters? {
+        return nil
+    }
+    
+    var encoding: ParameterEncoding = {
+        return JSONEncoding.prettyPrinted
+    }()
+    
+    var headers: HTTPHeaders {
+        let loginData = String(format:"%@:%@", "basicAuthUserId", "basicAuthPassword").data(using: String.Encoding.utf8)!
+        let base64LoginString = loginData.base64EncodedString()
+        let fields: HTTPHeaders = [
+            "Accept": "application/json",
+            "Cache-Control": "no-cache",
+            "Content-Type": "application/json",
+            "Authorization" : "Basic \(base64LoginString)",
+        ]
+        return fields
+    }
+
+    func asURLRequest() throws -> URLRequest {
+        let url = "BASE URL" // not string , must be URL
+        var urlRequest = URLRequest(url: url.addPath(path))
+        // Method
+        urlRequest.httpMethod = method.rawValue
+        // Headers
+        urlRequest.headers = headers
+        return try encoding.encode(urlRequest, with: parameters)
+    }
+}
+
+```
+
+#### Using MOYA
+```swift
+class MoyaAPIRequest:TargetType {
+
+    var baseURL: URL { fatalError("上書き必須") }
+    var path: String { fatalError("上書き必須") }
+    var method: Moya.Method { fatalError("上書き必須") }
+    var parameters: [String: Any]? { fatalError("上書き必須") }
+
+    var headers: [String: String]? {
+        return nil
+    }
+
+    var sampleData: Data {
+        return Data()
+    }
+
+    var task: Moya.Task {
+        if let parameters = self.parameters {
+            return .requestParameters(parameters: parameters, encoding: self.parameterEncoding)
+        } else {
+            return .requestPlain
+        }
+    }
+
+    var multipartBody: [Moya.MultipartFormData]? {
+        return nil
+    }
+
+    var parameterEncoding: Moya.ParameterEncoding {
+        return URLEncoding.default
+    }
+}
+```
+Now its time to create API Client class. I will use RxSwift for reactive behaviour.
+翻訳：次に、API クライアント クラスを作成します。 リアクティブな動作には RxSwift を使用します。
+
+```swift
+// APIClient.swift
+
+import Alamofire
+import RxSwift
+
+final class APIClient {
+    
+    static let `default`: APIClient = .init()
+
+    private let queue = DispatchQueue(label: "com.winas.iOS.test", attributes: .concurrent)
+    private let plugins: [PluginType] = [
+            NetworkLoggerPlugin(configuration: NetworkLoggerPlugin.Configuration())
+        ]
+    private var provider = MoyaProvider<MoyaAPIRequest>(plugins: plugins)
+    
+    func send<T: Decodable>(_ request: APIRequest<T>) -> Single<T> {
+        return self.request(request)
+    }
+    //MARK: - The request function to get results in an Observable
+    private func request<T: Decodable> (_ urlConvertible: URLRequestConvertible) -> Single<T> {
+        return Single.create { event in
+            let task = AF.request(urlConvertible)
+                .responseDecodable { (response: DataResponse<T, AFError>) in
+                switch response.result {
+                    case .success(let result):
+                        event(.success(result))
+                    case .failure(let error):
+                        switch response.response?.statusCode {
+                            case 401:
+                                event(.error(HTTPError.unAuthorized))
+                            case 403:
+                                event(.error(HTTPError.forbidden))
+                            case 404:
+                                event(.error(HTTPError.notFound))
+                            case 409:
+                                event(.error(HTTPError.conflict))
+                            case 500:
+                                event(.error(HTTPError.internalServerError))
+                            default:
+                                event(.error(error))
+                        }
+                }
+            }
+            return Disposables.create {
+                task.cancel()
+            }
+        }
+    }
+
+    // Using Moya
+    func moyaRequest(
+        target: MoyaAPIRequest,
+        success successCallback: @escaping (_ /*text: String?*/json: JSON?, _ allHeaderFields: [AnyHashable : Any]?) -> Void,
+        error errorCallback: @escaping (_ statusCode: Int) -> Void,
+        failure failureCallback: @escaping (Moya.MoyaError) -> Void
+        ) -> Cancellable
+    {
+        return provider.request(target, callbackQueue: self.queue) { result in
+            switch result {
+            case let .success(response):
+                let headerFields = response.response?.allHeaderFields
+                do {
+                    let res = try response.filterSuccessfulStatusAndRedirectCodes()
+                    if (res.statusCode >= 300) {
+                        successCallback(nil, headerFields)
+                    } else {
+                        let json = try JSON(response.mapJSON())
+                        successCallback(json, headerFields)
+                    }
+                }
+                catch let error {
+                    if response.statusCode == 200 {
+                        successCallback(nil, headerFields)
+                    } else {
+                        switch error as! Moya.MoyaError {
+                        case .statusCode(let response):
+                            if let statusCode = StatusCode(rawValue: response.statusCode) {
+                                errorCallback(statusCode.rawValue)
+                            } else {
+                                failureCallback(error as! MoyaError)
+                            }
+                        default: failureCallback(error as! Moya.MoyaError)
+                        }
+                    }
+                }
+            case let .failure(error): failureCallback(error)
+            }
+        }
+    }
+}
+
+```
+
+#### Step-3
+Our Network Layer is completed. Now we send a accual API request.
+Now write a Sample Request class that extends the ```APIRequest``` class.
+
+翻訳：
+
+ネットワーク層が完成しました。 次に、実際の API リクエストを送信します。
+次に、```API Request``` クラスを拡張する Sample Request クラスを作成します。
+
+```swift
+
+// SampleRequest.swift
+
+class SampleRequest: APIRequest<SampleResponse> {
+    
+    override var method: HTTPMethod {
+        return .post
+    }
+
+    override var path: String {
+        return "/article"
+    }
+    
+    // MARK: - Parameters
+    var apiToken: String
+    
+    override var parameters: Parameters? {
+        let params: [String: Any] = [
+        ]
+        return params
+    }
+    
+    // MARK: Initializers
+    init(apiToken: String) {
+        self.apiToken = apiToken
+    }
+}
+
+
+// Using MOYA
+
+class MoyaAPIRequestTest: MoyaAPIRequest {
+
+    override var baseURL: URL {
+        return URL(string: "http://cs267.xbit.jp/~w065038/app/winas")!
+    }
+
+    override var path: String {
+        return "/static.txt"
+    }
+
+    override var method: Moya.Method {
+        return .get
+    }
+
+    override var parameters: [String: Any]? {
+       return nil 
+    }
+
+```
+Use this request in viewModel/Any where.
+翻訳：このリクエストを viewModel/Any where で使用します。
+
+```swift
+// viewModel.swift
+import RxSwift
+
+let disposeBag = DisposeBag()
+
+@discardableResult
+func getSampleData() -> Single<[SampleDataModel]> {
+    let request = SampleRequest(apiToken: "API Token")
+    let task = APIClient.default.send(request)
+        .asObservable()
+        .share()
+        .asSingle()
+    task.subscribe().disposed(by: disposeBag)
+    return task
+}
+
+@discardableResult
+func getSampleDataWithMoya() {
+    let request = MoyaAPIRequestTest()
+    _ = APIClient.default.moyaRequest(
+        target: request,
+        success: { content, _ in
+            guard let safeContent = content else { return }
+              // ...
+        },
+        error: { _ in
+            // .... 
+        },
+        failure: { _ in
+            // ....
+        })
+}
+
+```
+
+Now call your ```getSampleData()``` and subscribe the response.
+翻訳：次に、```getSampleData()``` を呼び出して、応答をサブスクライブします。
 
 ## Day5
 
@@ -445,7 +1360,28 @@ class ContentService {
                 guard let safeJson = json else { return }
                 // run in main => UI thread
                 DispatchQueue.main.async {
-                    // TODO
+                    var data = [Feedable]()
+                    safeJson.arrayValue.forEach { jsonObject in
+                        guard 
+                            let feedableId = jsonObject["content_type"].int,
+                            let feedableContent = FeedContentType(rawValue: feedableId) 
+                        else {
+                            return
+                        }
+                        switch feedableContent {
+                        case .cat:
+                            guard let cat = Mapper<Cat>().map(JSONObject: jsonObject.dictionaryObject) else {
+                                return
+                            }
+                            data.append(cat)
+                        case .dog:
+                            guard let dog = Mapper<Dog>().map(JSONObject: jsonObject.dictionaryObject) else {
+                                return
+                            }
+                            data.append(dog)
+                        }
+                    }
+                    completion?(data)
                 }
             },
             error: { statusCode in
@@ -463,24 +1399,36 @@ class ContentService {
 
 > - `SampleCustomView`では、`data`がセットされたときに`nameLabel`に「Dog」または「Cat」の`name`の文字列を表示させること
 
-```swift
-import UIKit
 
-class Dog: Animal {
-    override var name: String = "いぬ🐶"
-}
-class Cat: Animal {
-    override var name: String = "ねこ🐱"
-}
+```swift
 protocol Animal {
     var name: String { get set }
 }
+
+class Dog: Animal {
+    var name: String = "Dog"
+}
+
+class Cat: Animal {
+    var name: String = "Cat"
+}
+
+class Generic<T> {
+    var animal: T
+    init(animal: T) {
+        self.animal = animal
+    }
+}
+
 class SampleViewController: UIViewController {
+    @IBOutlet private dynamic weak var customView: SampleCustomView!
+    
     private lazy var customView: SampleCustomView = {
         let customView = SampleCustomView()
         view.addSubview(customView)
         return customView
     }()
+
     override func viewDidLoad() {
         super.viewDidLoad()
         customView.snp.makeConstraints { make in
@@ -489,12 +1437,36 @@ class SampleViewController: UIViewController {
             make.right.equalTo(view).offset(0)
             make.bottom.equalTo(view).offset(0)
         }
-        let Dog = Dog()
+        let cat = Cat()
         customView.data = cat
+
+        // Generic
+        customView.data = Generic(animal: cat)
     }
 }
+
 class SampleCustomView: UIView {
-    var data: ??? // TODO: 型名
+    // Generic
+    var data: Generic<Animal>? {
+        didSet {
+            guard let data = self.data else { return }
+            print(data.animal.name)
+        }
+    }
+    // Static
+    var data: Cat? {
+        didSet {
+            guard let name = data.name else { return }
+            nameLabel.text = name
+        }
+    }
+
+    var data: Dog? {
+        didSet {
+            guard let name = data.name else { return }
+            nameLabel.text = name
+        }
+    }
     @IBOutlet private dynamic weak var nameLabel: UILabel!
 }
 ```
@@ -521,16 +1493,37 @@ class Content: Mappable {
     }
 }
 class ContentViewController: UIViewController {
-    var content: Content?
+    var content: Content? {
+        didSet {
+            updateView()
+        }
+    }
     // TODO : contentが設定されない場合の代替処理
-    
+    var contentId: Int = 0 {
+        didSet {
+            ContentService().getContent(
+                contentId: contentId,
+                completion: { [weak self] content in
+                    self?.content = content
+                },
+                failure: nil 
+            )
+        }
+    }
+
     override func viewDidLoad() {
         super.viewDidLoad()
         // TODO
+        updateView()
     }
+
     private func updateView() {
-        // TODO : viewの更新処理（nameLabelのテキストにcontentの`name`を設定すること）
+        guard let content = self.content else {
+            return 
+        }
+        nameLabel.text = content.name
     }
+
     @IBOutlet fileprivate dynamic weak var nameLabel: UILabel!
 }
 class ContentService {
@@ -544,7 +1537,7 @@ class ContentService {
         let content = Content()
         content.id = 1234
         content.name = "テストコンテンツ"
-        completion?(hospital)
+        completion?(content) 
     }
 }
 ```
@@ -564,15 +1557,19 @@ class SampleViewController: UIViewController {
         super.viewDidLoad()
         customView.viewController = self
     }
+
     func onCustomViewChanged() {
         print("onCustomViewChanged!!")
     }
 }
+
 class SampleCustomView: UIView {
-    var viewController: SampleViewController?
+    weak var viewController: SampleViewController?
     @IBOutlet private dynamic weak var button: UIButton!
-    @IBAction private func buttonTouchUpInside(_ sender: UIButton) {
-        viewController?.onCustomViewChanged()
+    
+    @IBAction private func buttonTouchUpInside(_ sender: UIButton) { [weak self] in
+        guard let self = self else { return }
+        self.viewController.onCustomViewChanged()
     }
 }
 ```
@@ -586,7 +1583,10 @@ class SampleViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         header.closure = {
-            view.backgroundColor = .black
+            DispatchQueue.main.async { [weak self] in
+                guard let self = self else { return }
+                self.view.backgroundColor = .black
+            }
         }
     }
 }
@@ -604,6 +1604,12 @@ class SampleViewController: UIViewController {
         super.viewDidLoad()
         NotificationCenter.default.addObserver(self, selector: #selector(keyboardWillShow(_:)), name: UIResponder.keyboardWillShowNotification, object: nil)
     }
+
+    // Answer: 
+    denit {
+        NotificationCenter.default.removeObserver(self, name: UIResponder.keyboardWillShowNotification, object: nil)
+    }
+
     @objc private func keyboardWillShow(_ notification: Foundation.Notification) {
         print("keyboardWillShow!!")
     }
@@ -621,9 +1627,11 @@ class Content {
 }
 class SampleViewController: UIViewController {
     var contents = [Content]()
+
     override func viewDidLoad() {
         super.viewDidLoad()
     }
+
     @IBOutlet private dynamic weak var collectionView: UICollectionView! {
         didSet {
             collectionView.clipsToBounds = true
@@ -659,10 +1667,29 @@ extension SampleCollectionViewController: UICollectionViewDelegateFlowLayout {
     }
 }
 class ContentCollectionViewCell: UICollectionViewCell {
-    // TODO
+
+    struct Static {
+        static let cell = ContentCollectionViewCell.fromNib()
+        static let cache = NSCache<NSString, NSValue>()
+    }
+
     class func sizeForItem(content: Content, width: CGFloat) -> CGSize {
-        // TODO
-        return .zero
+        let cacheKey: NSString = "ContentCollectionViewCell:\(content.id)" as NSString
+        if let size = Static.cache.object(forKey: cacheKey) as? CGSize {
+            return size 
+        }
+
+        let cell = Static.cell
+        cell.frame.size = CGSize(width: width, height: 0)
+        cell.setNeedLayout()
+        var size = cell.systemLayoutSizeFitting(
+            CGSize(width: width, height: 0),
+            withHorizontalFittingPriority: .required,
+            verticalFittingPriority: .defaultLow
+        )
+        size.width = width 
+        Static.cache.setObject(NSValue(cgSize: size), forKey: cacheKey)
+        return size
     }
     var content: Content?
     private func updateView(_ content: Content) {
@@ -671,5 +1698,6 @@ class ContentCollectionViewCell: UICollectionViewCell {
     }
     @IBOutlet private dynamic weak var nameLabel: UILabel!
 }
+
 ```
 
