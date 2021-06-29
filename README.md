@@ -678,27 +678,44 @@ answer: ```swift Realm```
 
 ⑤　④のコンテンツのキャッシュ
 
-answer: ```swift Realm```
-
-有効期限内のキャッシュがあったらキャッシュを使う、なければAPIを叩く
+answer: CoreData or some other database to save the data. When the view controller appears, populate the view with data from the database. Register for changes to the database (i.e. NSFetchedResultsController for CD) and then make the network requests for new data. When the data returns, serialize the response into core data, realm, etc objects and save to database. 
 
 ```swift
-    func fetch(_ data: data_id) -> Single<[ArticleEntity]> {
+private func loadFromCache() {
         do {
-            let realm = try Realm()
-            // キャッシュがあり、有効期限が現在時刻より未来だったらキャッシュを使う
-            if let cache = realm.object(ofType: Feed.self, forPrimaryKey: data_id.rawValue),
-                cache.expiredDate > now { // <- 日付の比較はよしなに
-                let entities = Array(cache.recentArticles)
-                return Single<[ArticleEntity]>.just(entities)
-            }
-        } catch {
-            logger?.error(error.localizedDescription)
+            // get data from DB
+        } catch let error {
+            // error ....
         }
-        // キャッシュがなければAPIを叩いたものを使う
-        return fetchLatest(data_id) // APIをヒット
     }
+}
+
+private func loadFromServer() {
+    Service.content.getList(
+        completion: { [weak self] items in
+            guard let `self` = self else { return }
+            do {
+                // save the new data to db
+            } catch let error {
+                // error ....
+            }
+        },
+        failure: { _, _ in
+            // error ....
+        })
+    }
+
+#in viewDidLoad()
+
+override func viewDidLoad() {
+    super.viewDidLoad()
+    loadFromCache()
+    DispatchQueue.main.asyncAfter(deadline: .now() + 5, execute: { [weak self] in
+        self?.loadFromServer()
+    })
+}
 ```
+
 **（１０）以下の要件を満たすデータ群を、enumを用いて実際のコードで書いてください。**
 
 > - 名前は`Gender`とすること
@@ -779,35 +796,57 @@ On the other hand, regular services have the following characteristics:
 - 他のプロジェクトで再利用できない-特定のタスクがある
 
 ```swift
-
-class APIManager {
+class ContentService {
     
-    // MARK: - Vars & Lets
-    private let sessionManager: SessionManager
-    private let retrier: APIManagerRetrier
-    static let networkEnviroment: NetworkEnvironment = .dev
-    
-    // MARK: - Initialization
-    init(sessionManager: SessionManager, retrier: APIManagerRetrier) {
-        self.sessionManager = sessionManager
-        self.retrier = retrier
-        self.sessionManager.retrier = self.retrier
+    func getSingle(
+        completion: ((_ data: Content) -> Void)? = { _ in },
+        failure: ((_ error: NSError?, _ statusCode: Int?) -> Void)? = { _, _ in }
+        )
+    {
+        
     }
     
+    func getList(
+        completion: ((_ dataArray: [Content]) -> Void)? = { _ in },
+        failure: ((_ error: NSError?, _ statusCode: Int?) -> Void)? = { _, _ in }
+        )
+    {
+        _ = SampleNetwork.request(
+            target: .getList,
+            success: { json, _ in
+                guard let safeJson = json else { return }
+                // run in main => UI thread
+                DispatchQueue.main.async {
+                    if let dataArray = Mapper<Content>().mapArray(JSONObject: safeJson.arrayObject) {
+                        completion?(dataArray)
+                    } else {
+                        failure?(nil, nil)
+                    }
+                }
+            },
+            error: { statusCode in
+                failure?(nil, statusCode)
+            },
+            failure: { error in
+                failure?(nil, nil)
+            }
+        )
+    }
 }
 
-class UserNetworkServices {
-    
-    // MARK: - Vars & Lets
-    private let apiManager: APIManager
-    private let userServices: UserServices
-    
-    // MARK: - Initialization
-    init(apiManager: APIManager, userServices: UserServices) {
-        self.apiManager = apiManager
-        self.userServices = userServices
-    }
-    
+class Service {
+    static let content = ContentService()
+}
+
+#using 
+private func getData() {
+    Service.content.getList(
+        completion: { 
+            // ....
+        },
+        failure: { _, _ in
+            // ..... 
+        })
 }
 ```
 **（１２）サーバAPIからJSONデータを取得して、モデルクラスの形で呼び出し元まで返す過程を、準備のための実装フローも含めて、箇条書きでできるだけ詳しく、ロジックフローで説明してください。なお、ライブラリはAlamofire, Moya, SwiftyJson, ObjectMapperを使うものとします。**
@@ -1374,6 +1413,13 @@ class Cat: Animal {
     var name: String = "Cat"
 }
 
+class Generic<T> {
+    var animal: T
+    init(animal: T) {
+        self.animal = animal
+    }
+}
+
 class SampleViewController: UIViewController {
     @IBOutlet private dynamic weak var customView: SampleCustomView!
     
@@ -1393,15 +1439,18 @@ class SampleViewController: UIViewController {
         }
         let cat = Cat()
         customView.data = cat
+
+        // Generic
+        customView.data = Generic(animal: cat)
     }
 }
 
 class SampleCustomView: UIView {
     // Generic
-    var data: Animal? {
+    var data: Generic<Animal>? {
         didSet {
-            guard let name = data.name else { return }
-            nameLabel.text = name
+            guard let data = self.data else { return }
+            print(data.animal.name)
         }
     }
     // Static
