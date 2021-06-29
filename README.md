@@ -282,6 +282,8 @@ Views are dumb objects. They only know how to present data to the user. They don
 
 ビューはダム オブジェクトです。 彼らはユーザーにデータを提示する方法しか知りません。 彼らは彼らが何を提示しているのかを知らないか理解していません
 
+To avoid excessive dependence on the view controller and duplication of similar/same code, we can take the advantage of Service /Manager/Helper.
+
 ## Day2
 
 **（３）以下のコードのTODO箇所を埋めて、SnapKitによるレイアウトを実現するコードを書いてください。その際、下記の条件を満たすこと。**
